@@ -1,5 +1,8 @@
 # devdock
 
+[![npm version](https://img.shields.io/npm/v/@chuvenger/devdock.svg)](https://www.npmjs.com/package/@chuvenger/devdock)
+[![license](https://img.shields.io/npm/l/@chuvenger/devdock.svg)](./LICENSE)
+
 A tiny, dependency-free dev-only floating button. It sits in a corner of your
 app, **only renders in development**, and opens a popup to jump between dev
 routes and run custom commands.
