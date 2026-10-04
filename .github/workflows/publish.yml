@@ -1,9 +1,15 @@
 name: Release
 
-# Auto-publish to npm on every merge to main (changesets-driven), mirroring
-# the stacks release flow. A feature PR carrying a changeset lands on main;
-# this consumes it, commits the version bump straight back to main, then
-# publishes — no separate "Version Packages" PR. A merge with no changeset
+# Auto-publish to npm on every merge to main (changesets-driven), mirroring the
+# stacks release flow but with tokenless OIDC Trusted Publishing: npm trusts
+# this workflow directly, so there's no NPM_TOKEN to store, expire, or rotate.
+#
+# One-time setup on npm (after the first manual publish of this package):
+#   npmjs.com -> @chuvenger/devdock -> Settings -> Trusted Publisher
+#   GitHub, repo: Chubacca/devdock, workflow: publish.yml
+#
+# A feature PR carrying a changeset lands on main; this consumes it, commits the
+# version bump straight back to main, then publishes. A merge with no changeset
 # publishes nothing new unless the current version isn't on npm yet.
 on:
   push:
@@ -15,19 +21,22 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # push the version-bump commit back to main
+      id-token: write # OIDC trusted publishing to npm
     steps:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
 
-      - run: bun install
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-      - name: Configure npm for public npm registry
-        # Write to the repo root (not ~/.npmrc): publish resolves auth from the
-        # nearest .npmrc walking up from the package dir. `.npmrc` is gitignored,
-        # so the token never gets committed by the version step below.
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+      - name: Ensure npm supports Trusted Publishing (OIDC)
+        # Trusted publishing requires npm >= 11.5.1; Node 22 ships an older npm.
+        run: npm install -g npm@latest
+
+      - run: bun install
 
       - name: Version, commit, and publish
         run: |
@@ -48,7 +57,5 @@ jobs:
           fi
 
           # Publish if the current version isn't already on npm (idempotent).
+          # Authenticates via OIDC — no token required.
           bun run release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

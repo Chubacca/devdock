@@ -6,3 +6,4 @@ dist
 coverage
 bun.lock
 .npmrc
+.npmtoken
