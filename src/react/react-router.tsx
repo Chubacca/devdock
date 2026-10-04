@@ -2,9 +2,11 @@ import { useContext, useMemo } from "react";
 import {
   useNavigate,
   // UNSAFE_DataRouterContext is the supported way to reach the active
-  // router instance (and its full route tree) for data routers.
+  // router instance (and its full route tree) for data routers. Imported
+  // from `react-router` (not `react-router-dom`) so this works on v6, v7
+  // and v8 — v8 dropped the `react-router-dom` package entirely.
   UNSAFE_DataRouterContext as DataRouterContext,
-} from "react-router-dom";
+} from "react-router";
 import { DevDock, type DevDockProps } from "./DevDock";
 import type { DevRoute } from "../core/types";
 

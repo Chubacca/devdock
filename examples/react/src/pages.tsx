@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 
 const wrap: React.CSSProperties = {
   fontFamily: "ui-sans-serif, system-ui, sans-serif",

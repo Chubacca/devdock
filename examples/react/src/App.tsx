@@ -1,4 +1,4 @@
-import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Outlet, RouterProvider } from "react-router";
 import { ReactRouterDevDock } from "@chuvenger/devdock/react-router";
 import {
   Billing,

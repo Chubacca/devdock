@@ -29,8 +29,10 @@ lifecycle:
 | `@chuvenger/devdock/react-router` | `<ReactRouterDevDock />` + route auto-detection |
 | `@chuvenger/devdock/svelte` | `use:devdock` Svelte action |
 
-`react`, `react-dom`, `react-router-dom`, and `svelte` are all **optional** peer
-deps — install only what your adapter needs.
+`react`, `react-dom`, `react-router`, and `svelte` are all **optional** peer
+deps — install only what your adapter needs. The react-router adapter imports
+from `react-router`, so it works on v6, v7 and v8 (v8 removed the
+`react-router-dom` package; on v6/v7 `react-router` ships alongside it).
 
 ## Install
 
@@ -84,6 +86,11 @@ function Layout() {
   );
 }
 ```
+
+The adapter imports `useNavigate` / `UNSAFE_DataRouterContext` from
+`react-router` (the core package), which covers v6, v7 and v8. On v6/v7 that
+package comes in via `react-router-dom`; with a strict package manager (pnpm)
+add `react-router` to your own deps so it resolves.
 
 Render it inside the router tree. Dynamic (`:id`) and splat (`*`) routes are
 skipped since they need arguments. Customize per route via React Router's
