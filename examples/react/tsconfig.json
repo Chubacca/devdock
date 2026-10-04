@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "paths": {
+      "@chuvenger/devdock": ["../../src/index.ts"],
+      "@chuvenger/devdock/react": ["../../src/react/index.ts"],
+      "@chuvenger/devdock/react-router": ["../../src/react/react-router.tsx"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}
