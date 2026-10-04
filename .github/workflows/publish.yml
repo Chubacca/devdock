@@ -1,0 +1,54 @@
+name: Release
+
+# Auto-publish to npm on every merge to main (changesets-driven), mirroring
+# the stacks release flow. A feature PR carrying a changeset lands on main;
+# this consumes it, commits the version bump straight back to main, then
+# publishes — no separate "Version Packages" PR. A merge with no changeset
+# publishes nothing new unless the current version isn't on npm yet.
+on:
+  push:
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install
+
+      - name: Configure npm for public npm registry
+        # Write to the repo root (not ~/.npmrc): publish resolves auth from the
+        # nearest .npmrc walking up from the package dir. `.npmrc` is gitignored,
+        # so the token never gets committed by the version step below.
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+
+      - name: Version, commit, and publish
+        run: |
+          # Consume pending changesets if any (changeset version exits non-zero
+          # when there are none, which would abort this step under `bash -e`).
+          if find .changeset -name '*.md' ! -name 'README.md' | grep -q .; then
+            bun run version
+
+            # If anything changed, commit the bump back to main.
+            # [skip ci] avoids a redundant re-run of this workflow.
+            if ! git diff --quiet; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add -A
+              git commit -m "Release: version packages [skip ci]"
+              git push
+            fi
+          fi
+
+          # Publish if the current version isn't already on npm (idempotent).
+          bun run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

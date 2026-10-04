@@ -4,3 +4,5 @@ dist
 .DS_Store
 .context
 coverage
+bun.lock
+.npmrc
