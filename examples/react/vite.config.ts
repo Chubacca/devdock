@@ -22,7 +22,7 @@ export default defineConfig({
     ],
     // Ensure a single copy of React et al. even though the source lives
     // outside this example's own node_modules.
-    dedupe: ["react", "react-dom", "react-router-dom"],
+    dedupe: ["react", "react-dom", "react-router"],
   },
   server: {
     // Allow importing the library source from the repo root.
