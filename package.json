@@ -1,0 +1,105 @@
+{
+  "name": "@chuvenger/devdock",
+  "version": "0.1.0",
+  "description": "A tiny dev-only floating button that opens a popup to jump between dev routes and run custom commands.",
+  "author": "Ruven Chu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Chubacca/devdock.git"
+  },
+  "homepage": "https://github.com/Chubacca/devdock#readme",
+  "bugs": {
+    "url": "https://github.com/Chubacca/devdock/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "dev",
+    "devtools",
+    "developer",
+    "debug",
+    "react",
+    "svelte",
+    "react-router",
+    "navigation",
+    "command-palette"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs"
+    },
+    "./react-router": {
+      "types": "./dist/react-router.d.ts",
+      "import": "./dist/react-router.js",
+      "require": "./dist/react-router.cjs"
+    },
+    "./svelte": {
+      "types": "./dist/svelte.d.ts",
+      "import": "./dist/svelte.js",
+      "require": "./dist/svelte.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "bash ./.github/publish-packages.sh",
+    "prepublishOnly": "bun run build"
+  },
+  "peerDependencies": {
+    "react": ">=17",
+    "react-dom": ">=17",
+    "react-router-dom": ">=6",
+    "svelte": ">=4"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "react-router-dom": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@changesets/cli": "^3.0.2",
+    "@testing-library/jest-dom": "^6.4.8",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "jsdom": "^24.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "tsup": "^8.2.4",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}

@@ -1,0 +1,61 @@
+name: Release
+
+# Auto-publish to npm on every merge to main (changesets-driven), mirroring the
+# stacks release flow but with tokenless OIDC Trusted Publishing: npm trusts
+# this workflow directly, so there's no NPM_TOKEN to store, expire, or rotate.
+#
+# One-time setup on npm (after the first manual publish of this package):
+#   npmjs.com -> @chuvenger/devdock -> Settings -> Trusted Publisher
+#   GitHub, repo: Chubacca/devdock, workflow: publish.yml
+#
+# A feature PR carrying a changeset lands on main; this consumes it, commits the
+# version bump straight back to main, then publishes. A merge with no changeset
+# publishes nothing new unless the current version isn't on npm yet.
+on:
+  push:
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the version-bump commit back to main
+      id-token: write # OIDC trusted publishing to npm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Ensure npm supports Trusted Publishing (OIDC)
+        # Trusted publishing requires npm >= 11.5.1; Node 22 ships an older npm.
+        run: npm install -g npm@latest
+
+      - run: bun install
+
+      - name: Version, commit, and publish
+        run: |
+          # Consume pending changesets if any (changeset version exits non-zero
+          # when there are none, which would abort this step under `bash -e`).
+          if find .changeset -name '*.md' ! -name 'README.md' | grep -q .; then
+            bun run version
+
+            # If anything changed, commit the bump back to main.
+            # [skip ci] avoids a redundant re-run of this workflow.
+            if ! git diff --quiet; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add -A
+              git commit -m "Release: version packages [skip ci]"
+              git push
+            fi
+          fi
+
+          # Publish if the current version isn't already on npm (idempotent).
+          # Authenticates via OIDC — no token required.
+          bun run release
