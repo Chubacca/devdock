@@ -230,9 +230,62 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
     }
   };
 
+  type Row = {
+    item: Item;
+    node: HTMLButtonElement;
+    pathSpan: HTMLSpanElement | null;
+  };
+
+  // The rendered rows, parallel to the current filtered list. They are kept
+  // around so hovering or arrowing only repaints the highlight: rebuilding the
+  // rows would destroy the node under the pointer, and the browser then never
+  // dispatches a `click` on it (mousedown/mouseup retarget to the parent).
+  let rows: Row[] = [];
+  // Signature of the item list the rows were built from; identical signature
+  // means the existing nodes can be reused as-is.
+  let rowsSig: string | null = null;
+
+  const itemSig = (it: Item): string =>
+    [it.key, it.group, it.label, it.kind === "route" ? it.route.path : ""].join(
+      "\u0000",
+    );
+
+  const paintActive = () => {
+    rows.forEach((row, idx) => {
+      const isActive = idx === active;
+      row.node.style.background = isActive ? "#2563eb" : "transparent";
+      if (row.pathSpan)
+        row.pathSpan.style.color = isActive ? "#cfe0ff" : "#6b7280";
+    });
+  };
+
+  const setActive = (next: number, scroll = false) => {
+    if (next === active || next < 0 || next >= rows.length) return;
+    active = next;
+    paintActive();
+    // `scrollIntoView` is absent in jsdom, hence the optional call.
+    if (scroll) rows[active]?.node.scrollIntoView?.({ block: "nearest" });
+  };
+
   const renderList = () => {
     const filtered = getFiltered();
     active = Math.min(active, Math.max(0, filtered.length - 1));
+
+    const sig = filtered.map(itemSig).join("\n");
+    if (sig === rowsSig) {
+      // Same items in the same order: keep the nodes, refresh the highlight.
+      // The items themselves are rebuilt on every call, so re-point each row
+      // at its current one (its `run`/`route` may have been swapped by
+      // `update()`).
+      filtered.forEach((it, idx) => {
+        const row = rows[idx];
+        if (row) row.item = it;
+      });
+      paintActive();
+      return;
+    }
+    rowsSig = sig;
+    rows = [];
     list.replaceChildren();
 
     if (filtered.length === 0) {
@@ -272,7 +325,6 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
 
       for (const it of groupItems) {
         const idx = filtered.indexOf(it);
-        const isActive = idx === active;
         const row = el("button", {
           display: "flex",
           alignItems: "center",
@@ -283,7 +335,7 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
           padding: "8px 10px",
           fontSize: "13px",
           color: "#e7e9ee",
-          background: isActive ? "#2563eb" : "transparent",
+          background: "transparent",
           border: "none",
           borderRadius: "8px",
           cursor: "pointer",
@@ -301,30 +353,32 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
         );
         row.appendChild(labelSpan);
 
+        let pathSpan: HTMLSpanElement | null = null;
         if (it.kind === "route" && it.route.path !== it.label) {
-          row.appendChild(
-            el(
-              "span",
-              {
-                fontSize: "11px",
-                color: isActive ? "#cfe0ff" : "#6b7280",
-                fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                flexShrink: "0",
-              },
-              { textContent: it.route.path },
-            ),
+          pathSpan = el(
+            "span",
+            {
+              fontSize: "11px",
+              color: "#6b7280",
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+              flexShrink: "0",
+            },
+            { textContent: it.route.path },
           );
+          row.appendChild(pathSpan);
         }
 
-        row.addEventListener("mouseenter", () => {
-          active = idx;
-          renderList();
-        });
-        row.addEventListener("click", () => void runItem(it));
+        const rec: Row = { item: it, node: row, pathSpan };
+        rows[idx] = rec;
+
+        row.addEventListener("mouseenter", () => setActive(idx));
+        row.addEventListener("click", () => void runItem(rec.item));
         section.appendChild(row);
       }
       list.appendChild(section);
     }
+
+    paintActive();
   };
 
   const renderShell = () => {
@@ -376,21 +430,18 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
   });
 
   panel.addEventListener("keydown", (e) => {
-    const filtered = getFiltered();
     if (e.key === "Escape") {
       e.preventDefault();
       setOpen(false);
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      active = Math.min(active + 1, filtered.length - 1);
-      renderList();
+      setActive(Math.min(active + 1, rows.length - 1), true);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      active = Math.max(active - 1, 0);
-      renderList();
+      setActive(Math.max(active - 1, 0), true);
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const it = filtered[active];
+      const it = rows[active]?.item;
       if (it) void runItem(it);
     }
   });

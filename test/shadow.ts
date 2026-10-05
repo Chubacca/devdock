@@ -21,5 +21,9 @@ export const toggle = () => byLabel("Toggle dev menu") as HTMLElement;
 export const dialog = () => q("[role='dialog']");
 export const filterInput = () => q("[role='dialog'] input") as HTMLElement;
 export const rowWith = (text: string) =>
-  qa("[role='dialog'] button").find((b) => b.textContent?.includes(text)) ??
-  null;
+  rowEls().find((b) => b.textContent?.includes(text)) ?? null;
+// Every row in the open panel, in DOM order. The toggle button lives outside
+// the dialog, so this is exactly the item rows.
+export const rowEls = () => qa("[role='dialog'] button");
+export const isHighlighted = (row: HTMLElement) =>
+  row.style.background !== "" && row.style.background !== "transparent";

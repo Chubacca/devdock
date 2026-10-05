@@ -7,6 +7,8 @@ import {
   dialog,
   filterInput,
   hostEl,
+  isHighlighted,
+  rowEls,
   rowWith,
   toggle,
 } from "./shadow";
@@ -103,6 +105,96 @@ describe("createDevDock (framework-agnostic core)", () => {
     await user.type(filterInput(), "bill");
     expect(rowWith("Billing")).toBeTruthy();
     expect(rowWith("Admin")).toBeFalsy();
+    inst.destroy();
+  });
+
+  // Regression: `renderList()` used to rebuild every row on `mouseenter`,
+  // which replaced the node under the pointer. In a real browser that means
+  // mousedown and mouseup land on different nodes, so no `click` is ever
+  // dispatched on the row and the dock does nothing on a mouse click. jsdom
+  // can't see that (no hit testing, and `.click()` dispatches directly), so
+  // these tests assert the underlying invariant: hovering doesn't rebuild.
+  it("hovering a row does not rebuild the list", async () => {
+    const user = userEvent.setup();
+    const inst = createDevDock({
+      enabled: true,
+      routes: [
+        { path: "/a", label: "A" },
+        { path: "/b", label: "B" },
+        { path: "/c", label: "C" },
+      ],
+    });
+    await user.click(toggle());
+
+    const hover = (row: HTMLElement) =>
+      row.dispatchEvent(new MouseEvent("mouseenter"));
+
+    const first = rowEls()[1]!;
+    hover(first);
+    expect(isHighlighted(first)).toBe(true);
+
+    // Same row again: the node under the pointer must survive.
+    hover(rowEls()[1]!);
+    expect(rowEls()[1]).toBe(first);
+    expect(isHighlighted(first)).toBe(true);
+
+    // A different row: the highlight moves, every node stays put.
+    const before = rowEls();
+    hover(rowEls()[2]!);
+    expect(rowEls()).toEqual(before);
+    expect(isHighlighted(first)).toBe(false);
+    expect(isHighlighted(before[2]!)).toBe(true);
+
+    inst.destroy();
+  });
+
+  it("moves the highlight with the arrow keys without rebuilding rows", async () => {
+    const user = userEvent.setup();
+    const inst = createDevDock({
+      enabled: true,
+      routes: [
+        { path: "/a", label: "A" },
+        { path: "/b", label: "B" },
+      ],
+    });
+    await user.click(toggle());
+    // The dock focuses the filter input on open via rAF; do it eagerly so the
+    // panel's keydown handler sees the keystrokes.
+    filterInput().focus();
+
+    const before = rowEls();
+    expect(isHighlighted(before[0]!)).toBe(true);
+
+    await user.keyboard("{ArrowDown}");
+    expect(rowEls()).toEqual(before);
+    expect(isHighlighted(before[0]!)).toBe(false);
+    expect(isHighlighted(before[1]!)).toBe(true);
+
+    await user.keyboard("{ArrowUp}");
+    expect(isHighlighted(before[0]!)).toBe(true);
+    expect(isHighlighted(before[1]!)).toBe(false);
+
+    inst.destroy();
+  });
+
+  it("runs the hovered row on click", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const inst = createDevDock({
+      enabled: true,
+      routes: [
+        { path: "/a", label: "A" },
+        { path: "/b", label: "B" },
+      ],
+      onNavigate,
+    });
+    await user.click(toggle());
+
+    const row = rowEls()[1]!;
+    row.dispatchEvent(new MouseEvent("mouseenter"));
+    await user.click(row);
+    expect(onNavigate).toHaveBeenCalledWith("/b");
+
     inst.destroy();
   });
 
