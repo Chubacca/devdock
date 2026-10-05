@@ -222,10 +222,18 @@ cd examples/svelte  && bun install && bun run dev   # Svelte 5 (use:devdock)
 
 ```bash
 bun install
-bun run test        # vitest (core + react + svelte + react-router)
+bun run test        # vitest, twice: once on react-router 8, once on 7
+bun run test:rr7    # just the react-router 7 pass
 bun run build       # tsup → dist (ESM + CJS + d.ts, one entry per adapter)
 bun run typecheck
 ```
+
+The react-router adapter is the one surface that has to work across router
+majors, so the suite runs twice. The default pass uses the installed
+`react-router` 8 (and React 19, which v8 requires); `vitest.rr7.config.ts`
+re-runs `test/react-router*` with the bare `react-router` specifier aliased to
+the `react-router-v7` devDep. `test/react-router.matrix.test.ts` asserts each
+pass really resolved the version it claims.
 
 ## License
 
