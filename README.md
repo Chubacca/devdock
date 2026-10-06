@@ -8,7 +8,7 @@ app, **only renders in development**, and opens a popup to jump between dev
 routes and run custom commands.
 
 - 🔒 **Dev-gated by default** — renders only in a dev build served from a dev host (localhost/LAN), so it never ships to a real URL. Fully overridable.
-- 🧭 **Route jumper** — list routes manually, or auto-detect your `/dev` routes from React Router.
+- 🧭 **Route jumper** — list routes manually, or auto-detect your `/dev` routes from React Router or SvelteKit.
 - ⚡ **Custom commands** — register any action (reset DB, toggle a flag, copy a token…).
 - 🔎 Filter box + keyboard nav (↑/↓/Enter/Esc) and an optional global hotkey.
 - 🎨 Zero CSS to import — inline-styled, high z-index, no runtime dependencies.
@@ -28,6 +28,7 @@ lifecycle:
 | `@chuvenger/devdock/react` | `<DevDock />` React component |
 | `@chuvenger/devdock/react-router` | `<ReactRouterDevDock />` + route auto-detection |
 | `@chuvenger/devdock/svelte` | `use:devdock` Svelte action |
+| `@chuvenger/devdock/sveltekit` | `use:devdock` + route auto-detection for SvelteKit |
 
 `react`, `react-dom`, `react-router`, and `svelte` are all **optional** peer
 deps — install only what your adapter needs. The react-router adapter imports
@@ -154,6 +155,60 @@ in any Svelte 4/5 app:
 
 Reactive `options` flow through automatically (the action's `update` re-renders).
 
+### SvelteKit (auto-detected routes)
+
+SvelteKit has no runtime route table, so the `/sveltekit` entry reads your
+routes off an `import.meta.glob` of your page files. The glob has to be written
+in your app — Vite resolves it at build time — so pass the result in as
+`modules`:
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<script lang="ts">
+  import { goto } from "$app/navigation";
+  import { devdock } from "@chuvenger/devdock/sveltekit";
+
+  const modules = import.meta.glob("/src/routes/**/+page.svelte");
+
+  const options = {
+    modules,
+    onNavigate: goto, // client-side navigation instead of a full load
+    hotkey: "mod+.",
+  };
+</script>
+
+<div use:devdock={options}></div>
+```
+
+The glob is lazy (no page is imported), and in a production build the dock is
+gated off anyway. **Only dev routes are listed by default** — `/dev` and
+everything under it, matching the React Router adapter's convention. Pass
+`staticRoutes` for the whole app, and `match` to scope the results:
+
+```ts
+{ modules, staticRoutes: true }                 // every page
+{ modules, staticRoutes: true, match: "/admin/*" }
+```
+
+Routes are derived the way SvelteKit derives URLs: layout groups (`(app)`) and
+optional params (`[[lang]]`) drop out of the path, and `+layout` / `+server` /
+`+error` files are ignored. Required (`[id]`), matched (`[id=int]`) and rest
+(`[...path]`) params are skipped since they need arguments — reach one with a
+command instead:
+
+```ts
+{ modules, commands: [{ label: "Sample user", run: () => goto("/users/42") }] }
+```
+
+Need the routes without the action — your own UI, or to pass them to the plain
+`devdock` action? `detectRoutes` is the same function, exported:
+
+```ts
+import { detectRoutes } from "@chuvenger/devdock/sveltekit";
+
+const routes = detectRoutes(import.meta.glob("/src/routes/**/+page.svelte"));
+```
+
 ## Vanilla / any framework
 
 ```ts
@@ -252,14 +307,21 @@ a `data-devdock` attribute either way.
 - `flattenRoutes(routes, parent?, options?): DevRoute[]` — pure helper that flattens a route tree.
 - `RouteMatcher` — `string | RegExp | ((route: DevRoute) => boolean)`.
 
+### `@chuvenger/devdock/sveltekit`
+
+- `devdock(node, options)` — the Svelte action, plus `modules`, `match`, `staticRoutes` and `routesDir`. Detected routes come first, then any `routes` you pass.
+- `detectRoutes(modules, options?): DevRoute[]` — the detected routes from an `import.meta.glob` (or a plain list of file paths). Takes `{ match?, staticRoutes?, routesDir? }`, or a bare matcher.
+- `routeFromFile(file, options?): string | null` — pure helper mapping one page file to the route it serves (`null` if it isn't navigable).
+
 ## Examples
 
 Runnable demos consuming the library straight from source live in
 [`examples/`](./examples):
 
 ```bash
-cd examples/react   && bun install && bun run dev   # React + React Router
-cd examples/svelte  && bun install && bun run dev   # Svelte 5 (use:devdock)
+cd examples/react     && bun install && bun run dev   # React + React Router
+cd examples/svelte    && bun install && bun run dev   # Svelte 5 (use:devdock)
+cd examples/sveltekit && bun install && bun run dev   # SvelteKit (auto-detected routes)
 ```
 
 ## Development

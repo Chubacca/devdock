@@ -6,6 +6,7 @@ export default defineConfig({
     react: "src/react/index.ts",
     "react-router": "src/react/react-router.tsx",
     svelte: "src/svelte/index.ts",
+    sveltekit: "src/svelte/sveltekit.ts",
   },
   format: ["esm", "cjs"],
   dts: true,
