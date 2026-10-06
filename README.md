@@ -7,7 +7,7 @@ A tiny, dependency-free dev-only floating button. It sits in a corner of your
 app, **only renders in development**, and opens a popup to jump between dev
 routes and run custom commands.
 
-- 🔒 **Dev-gated by default** — hidden when `process.env.NODE_ENV === "production"`. Fully overridable.
+- 🔒 **Dev-gated by default** — renders only in a dev build served from a dev host (localhost/LAN), so it never ships to a real URL. Fully overridable.
 - 🧭 **Route jumper** — list routes manually, or auto-detect your `/dev` routes from React Router.
 - ⚡ **Custom commands** — register any action (reset DB, toggle a flag, copy a token…).
 - 🔎 Filter box + keyboard nav (↑/↓/Enter/Esc) and an optional global hotkey.
@@ -66,7 +66,8 @@ export function App() {
 }
 ```
 
-In production the component renders nothing, so it's safe to leave mounted.
+Outside development the component renders nothing, so it's safe to leave
+mounted.
 
 ### React Router (auto-detected routes)
 
@@ -172,8 +173,29 @@ Use this to build a Vue/Angular/web-component adapter, or wire it up by hand.
 
 ## Controlling when it shows
 
-`enabled` overrides the default `NODE_ENV` check — pass a boolean or a
-predicate (re-evaluated on every update):
+By default the dock renders only when **both** of these hold:
+
+1. **It's a dev build** — `process.env.NODE_ENV !== "production"`, the token
+   every bundler inlines.
+2. **It's served from a dev host** — loopback (`localhost`, `127.0.0.1`,
+   `::1`), an mDNS `.local` name, or a private LAN address (`10.x`,
+   `172.16–31.x`, `192.168.x`, so hitting your dev server from a phone on the
+   same Wi-Fi still counts).
+
+The second check catches what `NODE_ENV` alone can't: a **development build
+deployed to a real URL** — a preview deploy, a staging box, `vite build --mode
+development` — still reports `NODE_ENV !== "production"`, and would otherwise
+show the dock to anyone who opened it.
+
+Pass `devHostOnly={false}` to keep the build check but allow any hostname
+(a shared staging environment, a dev tunnel like ngrok or Cloudflare Tunnel):
+
+```tsx
+<DevDock devHostOnly={false} />
+```
+
+`enabled` takes over the gating entirely — both checks are skipped when it's
+set. Pass a boolean or a predicate (re-evaluated on every update):
 
 ```tsx
 // Show in dev, plus in prod when ?debug is present:
@@ -203,7 +225,8 @@ a `data-devdock` attribute either way.
 | ------------ | ----------------------------- | ------------------------------------ | ----------- |
 | `routes`     | `DevRoute[]`                  | `[]`                                 | Navigable destinations. |
 | `commands`   | `DevCommand[]`                | `[]`                                 | Custom actions. |
-| `enabled`    | `boolean \| (() => boolean)`  | `NODE_ENV !== "production"`          | Whether to render at all. A predicate is re-checked on every update. |
+| `enabled`    | `boolean \| (() => boolean)`  | dev build **and** dev host           | Whether to render at all. Overrides both default checks. A predicate is re-checked on every update. |
+| `devHostOnly`| `boolean`                     | `true`                               | Also require a localhost/LAN hostname, so dev builds on real URLs stay hidden. Ignored when `enabled` is set. |
 | `onNavigate` | `(path: string) => void`      | `window.location.assign`             | How to navigate on route select. |
 | `position`   | `"bottom-left" \| "bottom-right" \| "top-left" \| "top-right"` | `"bottom-right"` | Corner. |
 | `label`      | `string`                      | `"DEV"`                              | Button text. |

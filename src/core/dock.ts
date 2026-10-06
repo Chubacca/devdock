@@ -7,7 +7,7 @@ import type {
   DockPosition,
 } from "./types";
 
-const isDev = (): boolean => {
+const isDevBuild = (): boolean => {
   // Bundlers (Vite, webpack, Next, esbuild…) statically replace the full
   // `process.env.NODE_ENV` token, even in browser builds where `process`
   // itself is undefined. Reading it directly lets that replacement work;
@@ -17,6 +17,45 @@ const isDev = (): boolean => {
   } catch {
     return false;
   }
+};
+
+/** Loopback IPv4 (127/8) and the private LAN ranges 10/8, 172.16/12, 192.168/16. */
+const isLocalIPv4 = (host: string): boolean => {
+  const parts = /^(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(host);
+  if (!parts) return false;
+  const a = Number(parts[1]);
+  const b = Number(parts[2]);
+  return (
+    a === 127 ||
+    a === 10 ||
+    (a === 192 && b === 168) ||
+    (a === 172 && b >= 16 && b <= 31)
+  );
+};
+
+/**
+ * Whether the page is served from a developer's own machine. The `NODE_ENV`
+ * check alone can't tell: a development build deployed somewhere real (a
+ * preview URL, a staging box) still reports `NODE_ENV !== "production"`.
+ *
+ * Dev hosts are loopback, mDNS `.local` names, and private LAN addresses — so
+ * hitting the dev server from a phone on the same Wi-Fi still counts. Any
+ * other hostname is treated as a deployed site.
+ */
+const isDevHost = (): boolean => {
+  if (typeof location === "undefined") return true;
+  // IPv6 literals arrive bracketed, e.g. "[::1]".
+  const host = location.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  // No hostname at all (file://, about:blank…) is not a deployed site.
+  if (!host) return true;
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host === "::1" ||
+    host === "0.0.0.0" ||
+    isLocalIPv4(host)
+  );
 };
 
 type Item =
@@ -175,7 +214,10 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
   const enabled = (): boolean => {
     const e = opts.enabled;
     if (typeof e === "function") return e();
-    return e ?? isDev();
+    if (e != null) return e;
+    // Default gate: a dev build, served from a dev machine. `devHostOnly:
+    // false` keeps the build check but allows any hostname.
+    return isDevBuild() && (opts.devHostOnly === false || isDevHost());
   };
 
   const navigate = (path: string) => {
