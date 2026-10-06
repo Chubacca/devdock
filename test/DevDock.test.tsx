@@ -1,6 +1,6 @@
 import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DevDock } from "../src/react";
 import { byLabel, dialog, filterInput, rowWith, toggle } from "./shadow";
 
@@ -85,5 +85,32 @@ describe("DevDock (React)", () => {
     expect(byLabel("Toggle dev menu")).not.toBeNull();
     unmount();
     expect(byLabel("Toggle dev menu")).toBeNull();
+  });
+});
+
+describe("DevDock (React) default dev gating", () => {
+  // NODE_ENV is "test" under vitest, so the build half of the gate is open;
+  // these check the hostname half flows through the adapter untouched.
+  const servedFrom = (hostname: string) => vi.stubGlobal("location", { hostname });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders with no props when served from a dev host", () => {
+    render(<DevDock />);
+    expect(byLabel("Toggle dev menu")).not.toBeNull();
+  });
+
+  it("stays hidden on a deployed host", () => {
+    servedFrom("app.example.com");
+    render(<DevDock />);
+    expect(byLabel("Toggle dev menu")).toBeNull();
+  });
+
+  it("renders on a deployed host with devHostOnly={false}", () => {
+    servedFrom("staging.example.com");
+    render(<DevDock devHostOnly={false} />);
+    expect(byLabel("Toggle dev menu")).not.toBeNull();
   });
 });

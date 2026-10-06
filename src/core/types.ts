@@ -36,12 +36,27 @@ export interface DevDockOptions {
   commands?: DevCommand[];
   /**
    * Whether the dock renders at all. Accepts a boolean or a predicate
-   * (re-evaluated on every `update`). When omitted, defaults to
-   * `process.env.NODE_ENV !== "production"`.
+   * (re-evaluated on every `update`). Takes over the gating completely — both
+   * the `NODE_ENV` and the dev-host check are skipped when it's set.
+   *
+   * When omitted, the dock renders only in development: a dev build
+   * (`process.env.NODE_ENV !== "production"`) served from a dev host (see
+   * {@link DevDockOptions.devHostOnly}).
    *
    * @example enabled: () => location.search.includes("debug")
    */
   enabled?: boolean | (() => boolean);
+  /**
+   * Also require the page to be served from a developer's machine — loopback,
+   * an mDNS `.local` name, or a private LAN address. Default: `true`.
+   *
+   * This catches the case `NODE_ENV` can't: a development build deployed to a
+   * real URL (a preview deploy, a staging box) still reports
+   * `NODE_ENV !== "production"`. Set `false` to drop the hostname check and
+   * gate on the build alone — e.g. to keep the dock on a shared staging
+   * environment or behind a dev tunnel. Ignored when `enabled` is set.
+   */
+  devHostOnly?: boolean;
   /**
    * How to navigate when a route is selected.
    * Defaults to `window.location.assign(path)`.

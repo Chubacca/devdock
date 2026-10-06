@@ -275,3 +275,81 @@ describe("devdock (svelte action)", () => {
     expect(dock()).toBeNull();
   });
 });
+
+describe("default dev gating (no `enabled` passed)", () => {
+  // Vitest runs with NODE_ENV=test, so the build half of the gate is always
+  // open here; these cover the hostname half. jsdom serves from "localhost".
+  const servedFrom = (hostname: string) => vi.stubGlobal("location", { hostname });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders with no options at all when served from a dev host", () => {
+    const inst = createDevDock();
+    expect(dock()).not.toBeNull();
+    inst.destroy();
+  });
+
+  it.each([
+    "localhost",
+    "my-app.localhost",
+    "macbook.local",
+    "127.0.0.1",
+    "::1",
+    "0.0.0.0",
+    "10.0.0.7",
+    "172.16.4.2",
+    "192.168.1.42",
+    "", // file:// and friends
+  ])("counts %s as a dev host", (hostname) => {
+    servedFrom(hostname);
+    const inst = createDevDock();
+    expect(dock()).not.toBeNull();
+    inst.destroy();
+  });
+
+  it.each([
+    "app.example.com",
+    "devdock-git-main.vercel.app",
+    "staging.internal",
+    "mylocalhost.com", // not a ".localhost" subdomain
+    "localhost.evil.com",
+    "8.8.8.8",
+    "172.32.0.1", // just outside the private 172.16/12 range
+  ])("stays hidden on %s, even in a dev build", (hostname) => {
+    servedFrom(hostname);
+    const inst = createDevDock();
+    expect(dock()).toBeNull();
+    inst.destroy();
+  });
+
+  it("devHostOnly: false drops the hostname check", () => {
+    servedFrom("staging.example.com");
+    const inst = createDevDock({ devHostOnly: false });
+    expect(dock()).not.toBeNull();
+    inst.destroy();
+  });
+
+  it("explicit `enabled` overrides the hostname check", () => {
+    servedFrom("app.example.com");
+    const inst = createDevDock({ enabled: true });
+    expect(dock()).not.toBeNull();
+    inst.destroy();
+
+    const predicate = createDevDock({ enabled: () => true });
+    expect(dock()).not.toBeNull();
+    predicate.destroy();
+  });
+
+  it("re-checks the host gate on update()", () => {
+    servedFrom("app.example.com");
+    const inst = createDevDock();
+    expect(dock()).toBeNull();
+    inst.update({ devHostOnly: false });
+    expect(dock()).not.toBeNull();
+    inst.update({ devHostOnly: true });
+    expect(dock()).toBeNull();
+    inst.destroy();
+  });
+});
