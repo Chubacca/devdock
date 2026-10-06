@@ -23,7 +23,7 @@ export function Home() {
     <Page title="devdock example">
       <p>
         This app has several routes. Open the green <strong>DEV</strong> button
-        in the bottom-left (or press <kbd>⌘/Ctrl</kbd> + <kbd>.</kbd>) to jump
+        in the bottom-right (or press <kbd>⌘/Ctrl</kbd> + <kbd>.</kbd>) to jump
         between them or run a command.
       </p>
       <p>

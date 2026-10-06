@@ -48,7 +48,7 @@
   <h1>devdock + Svelte</h1>
   <p>Current page: <code>{page}</code></p>
   <p>
-    Open the green <strong>DEV</strong> button in the bottom-left (or press
+    Open the green <strong>DEV</strong> button in the bottom-right (or press
     <kbd>⌘/Ctrl</kbd> + <kbd>.</kbd>). Selecting a route updates the page state
     via <code>onNavigate</code>; commands run their handlers.
   </p>

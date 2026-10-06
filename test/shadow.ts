@@ -16,6 +16,11 @@ export const q = (sel: string) =>
 export const qa = (sel: string) =>
   [...(root()?.querySelectorAll(sel) ?? [])] as HTMLElement[];
 
+// The fixed-position wrapper that carries the corner placement. It's the
+// shadow root's own child, not the `data-devdock` host.
+export const shell = () =>
+  (root()?.firstElementChild ?? null) as HTMLElement | null;
+
 export const byLabel = (label: string) => q(`[aria-label="${label}"]`);
 export const toggle = () => byLabel("Toggle dev menu") as HTMLElement;
 export const dialog = () => q("[role='dialog']");

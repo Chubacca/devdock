@@ -15,10 +15,12 @@ interface RRRoute {
   path?: string;
   index?: boolean;
   children?: RRRoute[];
-  handle?: { devLabel?: string; devGroup?: string; hidden?: boolean } & Record<
-    string,
-    unknown
-  >;
+  handle?: {
+    dev?: boolean;
+    devLabel?: string;
+    devGroup?: string;
+    hidden?: boolean;
+  } & Record<string, unknown>;
 }
 
 /**
@@ -46,48 +48,122 @@ function joinPath(parent: string, child: string): string {
   return `${base}/${child}`;
 }
 
+/** Opt-in markers that make a route a dev destination. */
+function isDevMarked(handle: RRRoute["handle"]): boolean {
+  return (
+    handle?.dev === true || handle?.devLabel != null || handle?.devGroup != null
+  );
+}
+
+/**
+ * Convention: `/dev` and everything under it is a dev destination, so a dev
+ * section needs no `handle` at all.
+ */
+function isDevPath(path: string): boolean {
+  return path === "/dev" || path.startsWith("/dev/");
+}
+
+export interface DetectOptions {
+  /**
+   * Only keep routes that match. A glob string (`*` = any characters), a
+   * `RegExp`, or a predicate.
+   */
+  match?: RouteMatcher;
+  /**
+   * Also list the app's ordinary static routes, not just the dev ones.
+   * Default: `false`.
+   */
+  staticRoutes?: boolean;
+}
+
+/** State handed down to descendants of a dev-marked route. */
+interface Inherited {
+  dev: boolean;
+  group?: string;
+}
+
 /**
  * Flatten a react-router route tree into navigable {@link DevRoute}s.
- * Dynamic (`:param`) and splat (`*`) segments are skipped since they
- * can't be navigated to without arguments. Mark a route with
- * `handle.hidden` to exclude it, or `handle.devLabel` to rename it.
+ *
+ * Only dev destinations are returned: routes under `/dev`, routes marked with
+ * `handle.dev`, `handle.devLabel` or `handle.devGroup`, and everything nested
+ * under them. Pass `{ staticRoutes: true }` to list every static route instead.
+ *
+ * Dynamic (`:param`) and splat (`*`) segments are skipped since they can't be
+ * navigated to without arguments. Mark a route with `handle.hidden` to exclude
+ * it, or `handle.devLabel` to rename it.
  */
-export function flattenRoutes(routes: RRRoute[], parent = ""): DevRoute[] {
+export function flattenRoutes(
+  routes: RRRoute[],
+  parent = "",
+  options: Pick<DetectOptions, "staticRoutes"> = {},
+): DevRoute[] {
+  return walk(routes, parent, options.staticRoutes === true, { dev: false });
+}
+
+function walk(
+  routes: RRRoute[],
+  parent: string,
+  staticRoutes: boolean,
+  inherited: Inherited,
+): DevRoute[] {
   const out: DevRoute[] = [];
   for (const r of routes) {
     const full = r.index ? parent : joinPath(parent, r.path ?? "");
+    // A dev route makes its whole subtree dev, so marking a section's layout
+    // route is enough to surface the pages inside it. The `/dev` check reads
+    // the joined path, which also catches flat routes like `dev/inspector`.
+    const dev = inherited.dev || isDevMarked(r.handle) || isDevPath(full);
+    const group = r.handle?.devGroup ?? inherited.group;
     const navigable =
       !r.index &&
       r.path != null &&
       !full.includes(":") &&
       !full.includes("*") &&
-      r.handle?.hidden !== true;
+      r.handle?.hidden !== true &&
+      (dev || staticRoutes);
     if (navigable) {
       out.push({
         path: full || "/",
         label: r.handle?.devLabel ?? (full || "/"),
-        group: r.handle?.devGroup,
+        group,
       });
     }
-    if (r.children?.length) out.push(...flattenRoutes(r.children, full));
+    if (r.children?.length)
+      out.push(...walk(r.children, full, staticRoutes, { dev, group }));
   }
   return out;
 }
 
+function isMatcher(value: DetectOptions | RouteMatcher): value is RouteMatcher {
+  return (
+    typeof value === "string" ||
+    typeof value === "function" ||
+    value instanceof RegExp
+  );
+}
+
 /**
- * Read every navigable route from the active react-router data router.
- * Pass `match` to scope the results (glob string, RegExp, or predicate).
+ * Read the dev routes off the active react-router data router — anything under
+ * `/dev` or marked with `handle.dev` / `devLabel` / `devGroup`, plus their
+ * children.
+ * Pass `{ staticRoutes: true }` to include the app's ordinary routes too, and
+ * `{ match }` to scope the results. A bare matcher is accepted as shorthand.
  */
-export function useDetectedRoutes(match?: RouteMatcher): DevRoute[] {
+export function useDetectedRoutes(
+  options: DetectOptions | RouteMatcher = {},
+): DevRoute[] {
+  const opts: DetectOptions = isMatcher(options) ? { match: options } : options;
+  const { match, staticRoutes } = opts;
   const ctx = useContext(DataRouterContext);
   const routes = (ctx?.router?.routes ?? []) as RRRoute[];
   return useMemo(() => {
     const seen = new Set<string>();
-    const deduped = flattenRoutes(routes).filter((r) =>
+    const deduped = flattenRoutes(routes, "", { staticRoutes }).filter((r) =>
       seen.has(r.path) ? false : (seen.add(r.path), true),
     );
     return match ? deduped.filter(toPredicate(match)) : deduped;
-  }, [routes, match]);
+  }, [routes, match, staticRoutes]);
 }
 
 export interface ReactRouterDevDockProps extends DevDockProps {
@@ -97,19 +173,25 @@ export interface ReactRouterDevDockProps extends DevDockProps {
    * included regardless of this filter.
    */
   match?: RouteMatcher;
+  /**
+   * List the app's ordinary static routes alongside the dev ones.
+   * Off by default, so the dock only shows what you opted in.
+   */
+  staticRoutes?: boolean;
 }
 
 /**
- * Drop-in {@link DevDock} for react-router apps: navigates via the SPA
- * router and auto-detects routes from the active data router. Any
- * `routes` you pass are appended to the detected ones.
+ * Drop-in {@link DevDock} for react-router apps: navigates via the SPA router
+ * and auto-detects the dev routes from the active data router. Any `routes`
+ * you pass are appended to the detected ones.
  */
 export function ReactRouterDevDock({
   match,
+  staticRoutes,
   ...props
 }: ReactRouterDevDockProps) {
   const navigate = useNavigate();
-  const detected = useDetectedRoutes(match);
+  const detected = useDetectedRoutes({ match, staticRoutes });
   const routes = useMemo(
     () => [...detected, ...(props.routes ?? [])],
     [detected, props.routes],

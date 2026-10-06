@@ -47,7 +47,7 @@ export interface DevDockOptions {
    * Defaults to `window.location.assign(path)`.
    */
   onNavigate?: (path: string) => void;
-  /** Corner to anchor the button. Default: "bottom-left". */
+  /** Corner to anchor the button. Default: "bottom-right". */
   position?: DockPosition;
   /** Text on the floating button. Default: "DEV". */
   label?: string;

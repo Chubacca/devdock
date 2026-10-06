@@ -12,9 +12,11 @@ to the library are reflected live — no rebuild needed.
 
 ## What to try
 
-- Click the green **DEV** button in the bottom-left (or press <kbd>⌘/Ctrl</kbd> + <kbd>.</kbd>).
-- Routes (`/dashboard`, `/settings`, `/billing`, `/style-guide`) are
-  **auto-detected** from the React Router config and grouped via `handle.devGroup`.
+- Click the green **DEV** button in the bottom-right (or press <kbd>⌘/Ctrl</kbd> + <kbd>.</kbd>).
+- Routes marked as dev destinations (`/dashboard`, `/billing`, `/style-guide`)
+  are **auto-detected** from the React Router config and grouped via `handle.devGroup`.
+- `/settings` carries no marker, so it appears only if you add `staticRoutes` to
+  the `<ReactRouterDevDock />` in `src/App.tsx`.
 - `/users/:id` (dynamic) and `/secret` (`handle.hidden`) are intentionally **not** listed.
 - The **Actions / Links** commands show custom handlers, including a `keepOpen` one.
 

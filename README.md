@@ -8,7 +8,7 @@ app, **only renders in development**, and opens a popup to jump between dev
 routes and run custom commands.
 
 - 🔒 **Dev-gated by default** — hidden when `process.env.NODE_ENV === "production"`. Fully overridable.
-- 🧭 **Route jumper** — list routes manually, or auto-detect them from React Router.
+- 🧭 **Route jumper** — list routes manually, or auto-detect your `/dev` routes from React Router.
 - ⚡ **Custom commands** — register any action (reset DB, toggle a flag, copy a token…).
 - 🔎 Filter box + keyboard nav (↑/↓/Enter/Esc) and an optional global hotkey.
 - 🎨 Zero CSS to import — inline-styled, high z-index, no runtime dependencies.
@@ -92,21 +92,42 @@ The adapter imports `useNavigate` / `UNSAFE_DataRouterContext` from
 package comes in via `react-router-dom`; with a strict package manager (pnpm)
 add `react-router` to your own deps so it resolves.
 
-Render it inside the router tree. Dynamic (`:id`) and splat (`*`) routes are
-skipped since they need arguments. Customize per route via React Router's
-`handle`:
+Render it inside the router tree. **Only dev routes are listed by default.** A
+route counts as one if it lives under `/dev`, or if you opt it in via React
+Router's `handle`:
 
 ```tsx
-{ path: "reports", element: <Reports />, handle: { devLabel: "Reports", devGroup: "Internal", hidden: false } }
+{ path: "/dev/inspector", element: <Inspector /> }                // by convention
+{ path: "reports", element: <Reports />, handle: { dev: true } }  // opted in
+{ path: "flags", element: <Flags />, handle: { devLabel: "Feature Flags", devGroup: "Internal" } }
 ```
 
-**Scope which routes are detected** with `match` — a glob (`*` = any
-characters), a `RegExp`, or a predicate. Manual `routes` are always included:
+Any of `dev`, `devLabel` or `devGroup` marks a route, and both the convention
+and the mark cover the whole subtree — put one on a section's layout route and
+every page inside shows up (inheriting its `devGroup`). Use `handle.hidden` to
+drop one back out.
+
+**Want the whole app listed?** Set `staticRoutes` and every static route is
+detected, marked or not:
 
 ```tsx
-<ReactRouterDevDock match="/dev/*" />          // only routes under /dev
-<ReactRouterDevDock match={/^\/(admin|dev)/} />
-<ReactRouterDevDock match={(r) => r.path.length < 20} />
+<ReactRouterDevDock staticRoutes />
+```
+
+Dynamic (`:id`) and splat (`*`) routes are always skipped since they need
+arguments — to reach one, use a command that navigates to a known id:
+
+```tsx
+<ReactRouterDevDock commands={[{ label: "Sample user", run: () => navigate("/users/42") }]} />
+```
+
+**Scope what's detected** with `match` — a glob (`*` = any characters), a
+`RegExp`, or a predicate. Manual `routes` are always included:
+
+```tsx
+<ReactRouterDevDock staticRoutes match="/dev/*" />   // only routes under /dev
+<ReactRouterDevDock staticRoutes match={/^\/(admin|dev)/} />
+<ReactRouterDevDock staticRoutes match={(r) => r.path.length < 20} />
 ```
 
 ## Svelte
@@ -184,7 +205,7 @@ a `data-devdock` attribute either way.
 | `commands`   | `DevCommand[]`                | `[]`                                 | Custom actions. |
 | `enabled`    | `boolean \| (() => boolean)`  | `NODE_ENV !== "production"`          | Whether to render at all. A predicate is re-checked on every update. |
 | `onNavigate` | `(path: string) => void`      | `window.location.assign`             | How to navigate on route select. |
-| `position`   | `"bottom-left" \| "bottom-right" \| "top-left" \| "top-right"` | `"bottom-left"` | Corner. |
+| `position`   | `"bottom-left" \| "bottom-right" \| "top-left" \| "top-right"` | `"bottom-right"` | Corner. |
 | `label`      | `string`                      | `"DEV"`                              | Button text. |
 | `title`      | `string`                      | `"Dev Menu"`                         | Popup heading. |
 | `hotkey`     | `string \| null`              | `null`                               | Toggle shortcut, e.g. `"mod+."`. |
@@ -203,9 +224,9 @@ a `data-devdock` attribute either way.
 
 ### `@chuvenger/devdock/react-router`
 
-- `ReactRouterDevDock(props)` — `DevDock` wired to `useNavigate()` + auto-detected routes. Extra prop: `match?: RouteMatcher`.
-- `useDetectedRoutes(match?): DevRoute[]` — the detected routes, optionally scoped (build your own UI).
-- `flattenRoutes(routes, parent?): DevRoute[]` — pure helper that flattens a route tree.
+- `ReactRouterDevDock(props)` — `DevDock` wired to `useNavigate()` + auto-detected routes. Extra props: `match?: RouteMatcher`, `staticRoutes?: boolean`.
+- `useDetectedRoutes(options?): DevRoute[]` — the detected routes (build your own UI). Takes `{ match?, staticRoutes? }`, or a bare matcher.
+- `flattenRoutes(routes, parent?, options?): DevRoute[]` — pure helper that flattens a route tree.
 - `RouteMatcher` — `string | RegExp | ((route: DevRoute) => boolean)`.
 
 ## Examples

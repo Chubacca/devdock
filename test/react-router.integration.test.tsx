@@ -4,6 +4,7 @@ import { createMemoryRouter, Outlet, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import {
   ReactRouterDevDock,
+  type DetectOptions,
   type ReactRouterDevDockProps,
   type RouteMatcher,
   useDetectedRoutes,
@@ -34,6 +35,7 @@ function makeRouter(dockProps: ReactRouterDevDockProps = {}) {
       children: [
         { path: "admin", element: <div>admin page</div> },
         { path: "billing", element: <div>billing page</div> },
+        // Under /dev, so detected by convention — no `handle` needed.
         { path: "dev", element: <div>dev index</div> },
         { path: "dev/inspector", element: <div>inspector</div> },
         { path: ":id", element: <div>dynamic</div> },
@@ -43,19 +45,30 @@ function makeRouter(dockProps: ReactRouterDevDockProps = {}) {
 }
 
 describe("ReactRouterDevDock", () => {
-  it("auto-detects navigable routes and skips dynamic ones", async () => {
+  it("auto-detects dev routes and leaves the app's own routes out", async () => {
     const user = userEvent.setup();
     render(<RouterProvider router={makeRouter()} />);
     await user.click(toggle());
+    expect(rowWith("/dev")).toBeTruthy();
+    expect(rowWith("/dev/inspector")).toBeTruthy();
+    expect(rowWith("/admin")).toBeFalsy();
+    expect(rowWith("/billing")).toBeFalsy();
+  });
+
+  it("lists static routes too when asked, still skipping dynamic ones", async () => {
+    const user = userEvent.setup();
+    render(<RouterProvider router={makeRouter({ staticRoutes: true })} />);
+    await user.click(toggle());
     expect(rowWith("/admin")).toBeTruthy();
     expect(rowWith("/billing")).toBeTruthy();
+    expect(rowWith("/dev")).toBeTruthy();
     expect(rowWith("/:id")).toBeFalsy();
   });
 
   it("navigates through the SPA router on select", async () => {
     const user = userEvent.setup();
     navSpy.mockClear();
-    render(<RouterProvider router={makeRouter()} />);
+    render(<RouterProvider router={makeRouter({ staticRoutes: true })} />);
     await user.click(toggle());
     await user.click(rowWith("/admin")!);
     expect(navSpy).toHaveBeenCalledWith("/admin");
@@ -63,7 +76,11 @@ describe("ReactRouterDevDock", () => {
 
   it("scopes auto-detected routes with a glob match", async () => {
     const user = userEvent.setup();
-    render(<RouterProvider router={makeRouter({ match: "/dev/*" })} />);
+    render(
+      <RouterProvider
+        router={makeRouter({ match: "/dev/*", staticRoutes: true })}
+      />,
+    );
     await user.click(toggle());
     expect(rowWith("/dev/inspector")).toBeTruthy();
     expect(rowWith("/admin")).toBeFalsy();
@@ -73,10 +90,10 @@ describe("ReactRouterDevDock", () => {
 
 // `useDetectedRoutes` is public API (for building your own UI), so exercise it
 // directly rather than only through the dock.
-function renderDetected(match?: RouteMatcher) {
+function renderDetected(options?: DetectOptions | RouteMatcher) {
   let detected: DevRoute[] = [];
   function Probe() {
-    detected = useDetectedRoutes(match);
+    detected = useDetectedRoutes(options);
     return null;
   }
   const router = createMemoryRouter([
@@ -92,7 +109,7 @@ function renderDetected(match?: RouteMatcher) {
         { path: "admin", element: null },
         { path: "dev", element: null },
         { path: "dev/inspector", element: null, handle: { devLabel: "Insp" } },
-        { path: "secret", element: null, handle: { hidden: true } },
+        { path: "secret", element: null, handle: { dev: true, hidden: true } },
         { path: ":id", element: null },
         { path: "*", element: null },
       ],
@@ -103,12 +120,21 @@ function renderDetected(match?: RouteMatcher) {
 }
 
 describe("useDetectedRoutes", () => {
-  it("reads navigable routes off the active data router", () => {
+  it("reads the dev routes off the active data router", () => {
     const paths = renderDetected().map((r) => r.path);
-    expect(paths).toContain("/admin");
+    expect(paths).toContain("/dev");
     expect(paths).toContain("/dev/inspector");
+    expect(paths).not.toContain("/admin");
     expect(paths).not.toContain("/:id");
     expect(paths).not.toContain("/*");
+    expect(paths).not.toContain("/secret");
+  });
+
+  it("adds the app's static routes with staticRoutes", () => {
+    const paths = renderDetected({ staticRoutes: true }).map((r) => r.path);
+    expect(paths).toContain("/admin");
+    expect(paths).toContain("/dev");
+    expect(paths).not.toContain("/:id");
     expect(paths).not.toContain("/secret");
   });
 
@@ -127,7 +153,11 @@ describe("useDetectedRoutes", () => {
   });
 
   it("accepts a RegExp and a predicate matcher", () => {
-    expect(renderDetected(/^\/admin$/).map((r) => r.path)).toEqual(["/admin"]);
+    expect(
+      renderDetected({ match: /^\/admin$/, staticRoutes: true }).map(
+        (r) => r.path,
+      ),
+    ).toEqual(["/admin"]);
     expect(
       renderDetected((r) => r.path.startsWith("/dev")).map((r) => r.path),
     ).toEqual(["/dev", "/dev/inspector"]);
