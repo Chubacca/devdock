@@ -230,8 +230,11 @@ Use this to build a Vue/Angular/web-component adapter, or wire it up by hand.
 
 By default the dock renders only when **both** of these hold:
 
-1. **It's a dev build** — `process.env.NODE_ENV !== "production"`, the token
-   every bundler inlines.
+1. **It's a dev build** — `import.meta.env.DEV` when the bundler is in the
+   Vite family (Vite, SvelteKit, React Router 7, Astro…), otherwise
+   `process.env.NODE_ENV !== "production"`, the token every bundler inlines.
+   Both are replaced statically, so a production bundle drops the dock's gate
+   to a constant `false`.
 2. **It's served from a dev host** — loopback (`localhost`, `127.0.0.1`,
    `::1`), an mDNS `.local` name, or a private LAN address (`10.x`,
    `172.16–31.x`, `192.168.x`, so hitting your dev server from a phone on the
