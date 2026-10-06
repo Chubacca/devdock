@@ -1,6 +1,6 @@
 {
   "name": "@chuvenger/devdock",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A tiny dev-only floating button that opens a popup to jump between dev routes and run custom commands.",
   "author": "Ruven Chu",
   "repository": {
