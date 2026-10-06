@@ -10,6 +10,7 @@ import {
   isHighlighted,
   rowEls,
   rowWith,
+  shell,
   toggle,
 } from "./shadow";
 
@@ -46,6 +47,39 @@ describe("createDevDock (framework-agnostic core)", () => {
     const inst = createDevDock({ enabled: true, shadow: false });
     expect(hostEl()!.shadowRoot).toBeNull();
     expect(document.querySelector("[aria-label='Toggle dev menu']")).not.toBeNull();
+    inst.destroy();
+  });
+
+  it("anchors to the bottom-right corner by default", () => {
+    const inst = createDevDock({ enabled: true });
+    const { top, right, bottom, left } = shell()!.style;
+    expect({ bottom, right }).toEqual({ bottom: "16px", right: "16px" });
+    expect({ top, left }).toEqual({ top: "", left: "" });
+    inst.destroy();
+  });
+
+  it("moves to the requested corner, clearing the previous one", () => {
+    const inst = createDevDock({ enabled: true, position: "top-left" });
+    expect(shell()!.style.top).toBe("16px");
+    expect(shell()!.style.left).toBe("16px");
+    expect(shell()!.style.bottom).toBe("");
+    expect(shell()!.style.right).toBe("");
+
+    inst.update({ position: "bottom-right" });
+    expect(shell()!.style.bottom).toBe("16px");
+    expect(shell()!.style.right).toBe("16px");
+    expect(shell()!.style.top).toBe("");
+    expect(shell()!.style.left).toBe("");
+    inst.destroy();
+  });
+
+  it("opens the panel from the same corner as the button", async () => {
+    const user = userEvent.setup();
+    const inst = createDevDock({ enabled: true });
+    await user.click(toggle());
+    // Default corner: panel sits above the button and right-aligns to it.
+    expect(dialog()!.style.right).toBe("0px");
+    expect(dialog()!.style.left).toBe("");
     inst.destroy();
   });
 

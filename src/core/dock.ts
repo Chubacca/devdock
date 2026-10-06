@@ -45,14 +45,14 @@ function el<K extends keyof HTMLElementTagNameMap>(
 function cornerStyle(position: DockPosition): Styles {
   const gap = "16px";
   switch (position) {
-    case "bottom-right":
-      return { bottom: gap, right: gap };
+    case "bottom-left":
+      return { bottom: gap, left: gap };
     case "top-left":
       return { top: gap, left: gap };
     case "top-right":
       return { top: gap, right: gap };
     default:
-      return { bottom: gap, left: gap };
+      return { bottom: gap, right: gap };
   }
 }
 
@@ -382,7 +382,7 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
   };
 
   const renderShell = () => {
-    const position = opts.position ?? "bottom-left";
+    const position = opts.position ?? "bottom-right";
     const zIndex = opts.zIndex ?? 2147483000;
 
     Object.assign(root.style, {

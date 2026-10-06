@@ -16,7 +16,9 @@ function RootLayout() {
     <>
       <Outlet />
 
-      {/* Auto-detects all the routes below and navigates via the SPA router. */}
+      {/* Auto-detects the dev-marked routes below (the ones with a `handle.dev*`
+          entry) and navigates via the SPA router. Add `staticRoutes` to list
+          every static route instead — `/settings` shows up only then. */}
       <ReactRouterDevDock
         title="Example Dev Menu"
         hotkey="mod+."
@@ -52,7 +54,12 @@ const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { index: true, element: <Home /> },
-      { path: "dashboard", element: <Dashboard />, handle: { devLabel: "Dashboard" } },
+      {
+        path: "dashboard",
+        element: <Dashboard />,
+        handle: { devLabel: "Dashboard" },
+      },
+      // No dev marker, so it's listed only with `staticRoutes`.
       { path: "settings", element: <Settings /> },
       {
         path: "billing",

@@ -12,7 +12,7 @@ edits to the library are live.
 
 ## What to try
 
-- Click the green **DEV** button in the bottom-left (or press <kbd>⌘/Ctrl</kbd> + <kbd>.</kbd>).
+- Click the green **DEV** button in the bottom-right (or press <kbd>⌘/Ctrl</kbd> + <kbd>.</kbd>).
 - Selecting a route calls `onNavigate`, which updates local page state (plain
   Svelte has no router).
 - The **Actions / Links** commands run their handlers, including a `keepOpen` one.
