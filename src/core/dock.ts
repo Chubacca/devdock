@@ -7,8 +7,29 @@ import type {
   DockPosition,
 } from "./types";
 
+/**
+ * Vite's own build-time flag. The Vite family (Vite, SvelteKit, React Router
+ * 7, Astro…) statically replaces the full `import.meta.env.DEV` token with a
+ * literal, so this collapses to a constant there. Anywhere else the read
+ * throws — `import.meta.env` is undefined in plain Node and in our CJS build,
+ * where esbuild rewrites `import.meta` to `{}` — and we report "no opinion"
+ * so the caller can fall back to `NODE_ENV`.
+ */
+const viteDevFlag = (): boolean | undefined => {
+  try {
+    if (typeof import.meta.env.DEV === "boolean") return import.meta.env.DEV;
+  } catch {
+    // Not a Vite-built bundle.
+  }
+  return undefined;
+};
+
 const isDevBuild = (): boolean => {
-  // Bundlers (Vite, webpack, Next, esbuild…) statically replace the full
+  // Vite knows better than NODE_ENV: `vite build` leaves NODE_ENV unreplaced
+  // in some setups, and its dev server is a dev build regardless of NODE_ENV.
+  const vite = viteDevFlag();
+  if (vite !== undefined) return vite;
+  // Bundlers (webpack, Next, esbuild…) statically replace the full
   // `process.env.NODE_ENV` token, even in browser builds where `process`
   // itself is undefined. Reading it directly lets that replacement work;
   // the try/catch covers runtimes where it's left as a real (missing) global.
@@ -34,9 +55,9 @@ const isLocalIPv4 = (host: string): boolean => {
 };
 
 /**
- * Whether the page is served from a developer's own machine. The `NODE_ENV`
- * check alone can't tell: a development build deployed somewhere real (a
- * preview URL, a staging box) still reports `NODE_ENV !== "production"`.
+ * Whether the page is served from a developer's own machine. The build check
+ * alone can't tell: a development build deployed somewhere real (a preview
+ * URL, a staging box) still reports itself as a dev build.
  *
  * Dev hosts are loopback, mDNS `.local` names, and private LAN addresses — so
  * hitting the dev server from a phone on the same Wi-Fi still counts. Any

@@ -277,8 +277,9 @@ describe("devdock (svelte action)", () => {
 });
 
 describe("default dev gating (no `enabled` passed)", () => {
-  // Vitest runs with NODE_ENV=test, so the build half of the gate is always
-  // open here; these cover the hostname half. jsdom serves from "localhost".
+  // Vitest runs with NODE_ENV=test and import.meta.env.DEV true, so the build
+  // half of the gate is open unless stubbed; these cover the hostname half.
+  // jsdom serves from "localhost".
   const servedFrom = (hostname: string) => vi.stubGlobal("location", { hostname });
 
   afterEach(() => {
@@ -350,6 +351,60 @@ describe("default dev gating (no `enabled` passed)", () => {
     expect(dock()).not.toBeNull();
     inst.update({ devHostOnly: true });
     expect(dock()).toBeNull();
+    inst.destroy();
+  });
+});
+
+describe("the build half of the gate", () => {
+  // Vitest backs `import.meta.env` with `process.env`, so the Vite flag is
+  // always present here and `vi.stubEnv` is the only lever: the NODE_ENV
+  // fallback only runs where reading `import.meta.env.DEV` throws, which this
+  // environment can't reproduce.
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("hides when Vite reports a production build", () => {
+    vi.stubEnv("DEV", false);
+    const inst = createDevDock();
+    expect(dock()).toBeNull();
+    inst.destroy();
+
+    // Not the hostname check: dropping it changes nothing.
+    const anyHost = createDevDock({ devHostOnly: false });
+    expect(dock()).toBeNull();
+    anyHost.destroy();
+  });
+
+  it("trusts Vite's flag over NODE_ENV", () => {
+    vi.stubEnv("DEV", false);
+    vi.stubEnv("NODE_ENV", "development");
+    const prod = createDevDock();
+    expect(dock()).toBeNull();
+    prod.destroy();
+
+    vi.stubEnv("DEV", true);
+    vi.stubEnv("NODE_ENV", "production");
+    const dev = createDevDock();
+    expect(dock()).not.toBeNull();
+    dev.destroy();
+  });
+
+  it("explicit `enabled` overrides the build check", () => {
+    vi.stubEnv("DEV", false);
+    vi.stubEnv("NODE_ENV", "production");
+    const inst = createDevDock({ enabled: true });
+    expect(dock()).not.toBeNull();
+    inst.destroy();
+  });
+
+  it("re-checks the build gate on update()", () => {
+    vi.stubEnv("DEV", false);
+    const inst = createDevDock();
+    expect(dock()).toBeNull();
+    vi.stubEnv("DEV", true);
+    inst.update({});
+    expect(dock()).not.toBeNull();
     inst.destroy();
   });
 });
