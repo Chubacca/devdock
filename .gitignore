@@ -7,3 +7,4 @@ coverage
 bun.lock
 .npmrc
 .npmtoken
+.svelte-kit

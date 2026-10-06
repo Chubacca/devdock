@@ -9,6 +9,15 @@ import {
 } from "react-router";
 import { DevDock, type DevDockProps } from "./DevDock";
 import type { DevRoute } from "../core/types";
+import {
+  dedupeByPath,
+  isDevPath,
+  isMatcher,
+  toPredicate,
+  type RouteMatcher,
+} from "../core/match";
+
+export type { RouteMatcher };
 
 /** Minimal shape of a react-router route object we care about. */
 interface RRRoute {
@@ -23,24 +32,6 @@ interface RRRoute {
   } & Record<string, unknown>;
 }
 
-/**
- * Restricts which auto-detected routes appear. A string is treated as a glob
- * where `*` matches any characters (e.g. `"/dev/*"`, `"/admin/*"`); or pass a
- * `RegExp` tested against the path, or a predicate for full control.
- */
-export type RouteMatcher = string | RegExp | ((route: DevRoute) => boolean);
-
-function globToRegExp(glob: string): RegExp {
-  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-  return new RegExp(`^${escaped}$`);
-}
-
-function toPredicate(match: RouteMatcher): (route: DevRoute) => boolean {
-  if (typeof match === "function") return match;
-  const re = match instanceof RegExp ? match : globToRegExp(match);
-  return (route) => re.test(route.path);
-}
-
 function joinPath(parent: string, child: string): string {
   if (child.startsWith("/")) return child;
   if (!child) return parent || "/";
@@ -53,14 +44,6 @@ function isDevMarked(handle: RRRoute["handle"]): boolean {
   return (
     handle?.dev === true || handle?.devLabel != null || handle?.devGroup != null
   );
-}
-
-/**
- * Convention: `/dev` and everything under it is a dev destination, so a dev
- * section needs no `handle` at all.
- */
-function isDevPath(path: string): boolean {
-  return path === "/dev" || path.startsWith("/dev/");
 }
 
 export interface DetectOptions {
@@ -135,14 +118,6 @@ function walk(
   return out;
 }
 
-function isMatcher(value: DetectOptions | RouteMatcher): value is RouteMatcher {
-  return (
-    typeof value === "string" ||
-    typeof value === "function" ||
-    value instanceof RegExp
-  );
-}
-
 /**
  * Read the dev routes off the active react-router data router — anything under
  * `/dev` or marked with `handle.dev` / `devLabel` / `devGroup`, plus their
@@ -158,10 +133,7 @@ export function useDetectedRoutes(
   const ctx = useContext(DataRouterContext);
   const routes = (ctx?.router?.routes ?? []) as RRRoute[];
   return useMemo(() => {
-    const seen = new Set<string>();
-    const deduped = flattenRoutes(routes, "", { staticRoutes }).filter((r) =>
-      seen.has(r.path) ? false : (seen.add(r.path), true),
-    );
+    const deduped = dedupeByPath(flattenRoutes(routes, "", { staticRoutes }));
     return match ? deduped.filter(toPredicate(match)) : deduped;
   }, [routes, match, staticRoutes]);
 }
