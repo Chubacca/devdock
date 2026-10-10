@@ -8,6 +8,11 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
+    // The library source this example aliases to reads `import.meta.env.DEV`.
+    // Its own ambient declaration lives in `src/globals.d.ts`, which only the
+    // root tsconfig includes — `vite/client` is the right one to use from a
+    // Vite app, and it's what the svelte example already does.
+    "types": ["vite/client"],
     "paths": {
       "@chuvenger/devdock": ["../../src/index.ts"],
       "@chuvenger/devdock/react": ["../../src/react/index.ts"],

@@ -1,0 +1,132 @@
+/* The app's own "design system". It lives in the document's stylesheet, which
+   does not cross a shadow boundary — the dock's views only pick these rules up
+   because `<ReactRouterDevDock shadow="inherit" />` copies them in. Flip that
+   to the default `shadow` and the views below render unstyled. */
+
+:root {
+  --ds-bg: #ffffff;
+  --ds-fg: #1a1a1a;
+  --ds-muted: #6b7280;
+  --ds-line: #e5e7eb;
+  --ds-accent: #2563eb;
+}
+
+[data-theme="dark"] {
+  --ds-bg: #0f1115;
+  --ds-fg: #e7e9ee;
+  --ds-muted: #8b909c;
+  --ds-line: #2a2e37;
+  --ds-accent: #3b82f6;
+}
+
+body {
+  margin: 0;
+  background: var(--ds-bg);
+  color: var(--ds-fg);
+}
+
+/* The dock's panel is dark whatever the app's theme is, so the views re-point
+   the design system's tokens at that surface. Inheriting the page's CSS means
+   inheriting its assumptions too — this is the one that bites. */
+.ds-surface-dark {
+  --ds-bg: #16181d;
+  --ds-fg: #e7e9ee;
+  --ds-muted: #8b909c;
+  --ds-line: #2a2e37;
+  --ds-accent: #3b82f6;
+}
+
+.ds-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ds-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ds-fg);
+}
+
+.ds-row dt {
+  color: var(--ds-muted);
+}
+
+.ds-row dd {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.ds-meter {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 20px;
+  color: var(--ds-fg);
+}
+
+.ds-meter small {
+  font-size: 10px;
+  color: var(--ds-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.ds-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ds-accent);
+  animation: ds-pulse 1s ease-in-out infinite;
+}
+
+/* `data-frozen` lives on <html> for the app, and is re-applied on the view's
+   own root inside the dock — a selector anchored on an ancestor outside the
+   shadow root never matches inside it, even with `shadow="inherit"`. The rules
+   cross the boundary; the element tree does not. */
+[data-frozen] .ds-pulse {
+  animation: none;
+}
+
+@keyframes ds-pulse {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.ds-segmented {
+  display: inline-flex;
+  border: 1px solid var(--ds-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ds-segmented button {
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ds-fg);
+  background: var(--ds-bg);
+  border: none;
+  cursor: pointer;
+}
+
+.ds-segmented button[aria-pressed="true"] {
+  color: #fff;
+  background: var(--ds-accent);
+}
+
+.ds-button {
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: #fff;
+  background: var(--ds-accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}

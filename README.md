@@ -9,10 +9,11 @@ routes and run custom commands.
 
 - 🔒 **Dev-gated by default** — renders only in a dev build served from a dev host (localhost/LAN), so it never ships to a real URL. Fully overridable.
 - 🧭 **Route jumper** — list routes manually, or auto-detect your `/dev` routes from React Router or SvelteKit.
-- ⚡ **Custom commands** — register any action (reset DB, toggle a flag, copy a token…).
+- ⚡ **Custom commands** — register any action (reset DB, toggle a flag, copy a token…), with live labels and check marks for toggles.
+- 📊 **Custom views** — mount your own UI in the popup for anything a list can't say: a frame-rate meter, a sync status, a segmented control.
 - 🔎 Filter box + keyboard nav (↑/↓/Enter/Esc) and an optional global hotkey.
 - 🎨 Zero CSS to import — inline-styled, high z-index, no runtime dependencies.
-- 🛡️ **Shadow DOM isolated** by default — the host page's CSS can't touch it (and vice versa).
+- 🛡️ **Shadow DOM isolated** by default — the host page's CSS can't touch it (and vice versa), or `shadow: "inherit"` to let your design system in.
 - 🧩 **Framework-agnostic core** with thin **React** and **Svelte** adapters.
 
 ## Architecture
@@ -22,13 +23,13 @@ framework-free core (`createDevDock`) that builds DOM directly. The framework
 adapters are tiny wrappers that drive its `create → update → destroy`
 lifecycle:
 
-| Import | What you get |
-| ------ | ------------ |
-| `@chuvenger/devdock` | `createDevDock(options)` — vanilla core, works anywhere |
-| `@chuvenger/devdock/react` | `<DevDock />` React component |
-| `@chuvenger/devdock/react-router` | `<ReactRouterDevDock />` + route auto-detection |
-| `@chuvenger/devdock/svelte` | `use:devdock` Svelte action |
-| `@chuvenger/devdock/sveltekit` | `use:devdock` + route auto-detection for SvelteKit |
+| Import | What you get | Custom views |
+| ------ | ------------ | ------------ |
+| `@chuvenger/devdock` | `createDevDock(options)` — vanilla core, works anywhere | `mount(host)` → teardown |
+| `@chuvenger/devdock/react` | `<DevDock />` React component | `render: () => <JSX />`, portaled in |
+| `@chuvenger/devdock/react-router` | `<ReactRouterDevDock />` + route auto-detection | same as `/react` |
+| `@chuvenger/devdock/svelte` | `use:devdock` Svelte action | `mount(host)` → teardown |
+| `@chuvenger/devdock/sveltekit` | `use:devdock` + route auto-detection for SvelteKit | `mount(host)` → teardown |
 
 `react`, `react-dom`, `react-router`, and `svelte` are all **optional** peer
 deps — install only what your adapter needs. The react-router adapter imports
@@ -226,6 +227,140 @@ dock.destroy();                  // remove entirely
 
 Use this to build a Vue/Angular/web-component adapter, or wire it up by hand.
 
+## Stateful commands
+
+A command is normally fire-and-forget. Two optional fields turn one into a
+control that shows its own state — both are re-read on every render of the open
+panel, so the row updates in place:
+
+```tsx
+<DevDock
+  commands={[
+    // A function label: the row shows live state.
+    { id: "theme", label: () => `Theme: ${theme}`, keepOpen: true, run: toggleTheme },
+    // `checked` renders a check mark and makes the row a real toggle
+    // (role="checkbox" + aria-checked).
+    { id: "freeze", label: "Freeze animations", checked: () => frozen, keepOpen: true, run: freeze },
+  ]}
+/>
+```
+
+Pair them with `keepOpen: true` so the popup stays put and you can watch the
+value change. Give a command with a function `label` an explicit `id` — the id
+is what keeps the row stable when the text changes.
+
+## Custom views
+
+Some state has no row shape at all: a frame-rate meter, four lines of sync
+facts, a segmented control. Pass those in as **views** — your own UI, mounted
+inside the popup, keeping the dock's shell, hotkey, filter, route detection and
+dev-gating.
+
+Views are mounted when the popup **opens** and torn down when it **closes**,
+which is what makes a `requestAnimationFrame` loop or an event listener inside
+one correct rather than a leak.
+
+### React
+
+```tsx
+<DevDock
+  shadow="inherit"             // ← see below: views need the app's CSS
+  views={[
+    { id: "fps", label: "Frame rate", render: () => <FrameRate /> },
+    { id: "theme", label: "Theme", render: () => <ThemeControl value={theme} onChange={setTheme} /> },
+    // Two views under one "Session" heading, below the routes/commands list.
+    { id: "facts", group: "Session", order: "after", render: () => <SyncFacts /> },
+    { id: "signin", group: "Session", order: "after", render: () => <SignInButton /> },
+  ]}
+/>
+```
+
+The component is rendered with `createPortal` into a host element the dock
+owns, so it stays part of your React tree: context, hooks and state all work,
+and it re-renders when the component holding `<DevDock>` does. A view whose
+`id` is unchanged is **never remounted**, so re-rendering the parent is free.
+
+### Vanilla / Svelte
+
+The core contract is framework-free: fill the host element, return a teardown.
+
+```ts
+createDevDock({
+  views: [
+    {
+      id: "fps",
+      label: "Frame rate",
+      mount: (host) => {
+        let raf = requestAnimationFrame(function tick() {
+          host.textContent = `${fps()} fps`;
+          raf = requestAnimationFrame(tick);
+        });
+        return () => cancelAnimationFrame(raf); // ← runs when the popup closes
+      },
+    },
+  ],
+});
+```
+
+In Svelte the same field takes a component (Svelte 5 shown; on Svelte 4 use
+`new MyPanel({ target: host })` and `component.$destroy()`):
+
+```svelte
+<script lang="ts">
+  import { mount, unmount } from "svelte";
+  import { devdock } from "@chuvenger/devdock/svelte";
+  import SyncFacts from "./SyncFacts.svelte";
+
+  const options = {
+    shadow: "inherit",
+    views: [
+      {
+        id: "facts",
+        label: "Session",
+        mount: (host) => {
+          const view = mount(SyncFacts, { target: host });
+          return () => unmount(view);
+        },
+      },
+    ],
+  };
+</script>
+
+<div use:devdock={options}></div>
+```
+
+### Views and your CSS
+
+The dock renders inside a shadow root, and **the document's stylesheet does not
+cross that boundary** — a view that renders your app's own components renders
+unstyled. If your view needs the host app's CSS, say so:
+
+- `shadow="inherit"` — keep the shadow root, but copy the document's styles
+  into it (`document.adoptedStyleSheets` plus every `<style>` and
+  `<link rel="stylesheet">`, re-synced as your bundler injects or edits them).
+- `shadow={false}` — render in the light DOM, where the page's CSS applies
+  directly.
+
+Isolation stays the default. Two things to know about `"inherit"`:
+
+- The page's CSS can now reach the dock's own chrome too, and your design
+  system's tokens arrive with the page's assumptions — a light-theme token
+  lands on the dock's dark panel. Scope the tokens you need onto the view's
+  own root.
+- **The rules cross the boundary; the element tree does not.** A selector
+  anchored on an ancestor outside the shadow root —
+  `html[data-theme="dark"] .card`, `body.compact .row` — still won't match
+  inside it. Re-apply that state on the view's own root, where it can.
+
+`shadow` is read once, when the dock is created: a shadow root can't be
+detached, so `update()` ignores it.
+
+> Testing a view with `@testing-library/user-event`? It can't type into a
+> shadow root — it installs its value interceptor from a `focus` listener on
+> the document, where the event has been retargeted to the shadow host. Render
+> with `shadow: false` in tests, or write the value through the native setter
+> and dispatch `input` yourself.
+
 ## Controlling when it shows
 
 By default the dock renders only when **both** of these hold:
@@ -271,9 +406,18 @@ tree-shakes it: `{import.meta.env.DEV && <DevDock … />}`.
 The dock is styled entirely with inline styles (no stylesheet to import) and,
 by default, renders inside an **open shadow root** attached to a host element in
 `document.body`. That means the host page's CSS can't leak in and the dock's
-styles can't leak out. Pass `shadow: false` to render in the light DOM instead
-(e.g. if you want to override its look from the page). The host element carries
-a `data-devdock` attribute either way.
+styles can't leak out. The host element carries a `data-devdock` attribute in
+every mode.
+
+| `shadow` | Where it renders | The page's CSS |
+| -------- | ---------------- | -------------- |
+| `true` (default) | shadow root | kept out |
+| `"inherit"` | shadow root | copied in, and kept in sync |
+| `false` | light DOM | applies directly |
+
+Use `"inherit"` (or `false`) when a [custom view](#views-and-your-css) renders
+your app's own components and needs its stylesheet. Otherwise leave it alone —
+isolation is the reason the dock survives arbitrary host CSS.
 
 ## API
 
@@ -283,6 +427,7 @@ a `data-devdock` attribute either way.
 | ------------ | ----------------------------- | ------------------------------------ | ----------- |
 | `routes`     | `DevRoute[]`                  | `[]`                                 | Navigable destinations. |
 | `commands`   | `DevCommand[]`                | `[]`                                 | Custom actions. |
+| `views`      | `DevView[]`                   | `[]`                                 | Custom panels, mounted while the popup is open. |
 | `enabled`    | `boolean \| (() => boolean)`  | dev build **and** dev host           | Whether to render at all. Overrides both default checks. A predicate is re-checked on every update. |
 | `devHostOnly`| `boolean`                     | `true`                               | Also require a localhost/LAN hostname, so dev builds on real URLs stay hidden. Ignored when `enabled` is set. |
 | `onNavigate` | `(path: string) => void`      | `window.location.assign`             | How to navigate on route select. |
@@ -292,16 +437,23 @@ a `data-devdock` attribute either way.
 | `hotkey`     | `string \| null`              | `null`                               | Toggle shortcut, e.g. `"mod+."`. |
 | `zIndex`     | `number`                      | `2147483000`                         | Base z-index. |
 | `container`  | `HTMLElement`                 | `document.body`                      | Where to mount. |
-| `shadow`     | `boolean`                     | `true`                               | Render in a shadow root (CSS-isolated). Set `false` for light DOM. |
+| `shadow`     | `boolean \| "inherit"`        | `true`                               | Render in a shadow root (CSS-isolated). `"inherit"` copies the page's styles in; `false` renders in the light DOM. Read once, at creation. |
 
 `DevRoute`: `{ path: string; label?: string; group?: string }`
 
-`DevCommand`: `{ label: string; run: () => void | Promise<void>; id?: string; group?: string; keepOpen?: boolean }`
+`DevCommand`: `{ label: string | (() => string); run: () => void | Promise<void>; checked?: () => boolean; id?: string; group?: string; keepOpen?: boolean }`
+
+`DevView`: `{ mount: (host: HTMLElement) => void | (() => void); id?: string; label?: string; group?: string; order?: "before" | "after" }` — on the React adapter, `render: () => ReactNode` replaces `mount`.
 
 ### `@chuvenger/devdock` (core)
 
 - `createDevDock(options?): { update(options), destroy() }` — mounts the dock; no-ops during SSR (no `document`).
 - `matchHotkey(spec, event)` — the hotkey matcher (exported for reuse).
+
+### `@chuvenger/devdock/react`
+
+- `DevDock(props)` — the component. Same options as the core, with `views` taking `render: () => ReactNode` instead of `mount`.
+- `DevDockView` — the React view shape.
 
 ### `@chuvenger/devdock/react-router`
 
