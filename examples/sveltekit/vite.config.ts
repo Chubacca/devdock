@@ -4,23 +4,12 @@ import { fileURLToPath, URL } from "node:url";
 
 const fromHere = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
-// Consume the library straight from source so edits to ../../src are live.
+// The `@chuvenger/devdock` aliases live in svelte.config.js (`kit.alias`), so
+// they reach the generated tsconfig as well as the bundler.
 export default defineConfig({
   plugins: [sveltekit()],
-  resolve: {
-    alias: [
-      {
-        find: "@chuvenger/devdock/sveltekit",
-        replacement: fromHere("../../src/svelte/sveltekit.ts"),
-      },
-      {
-        find: "@chuvenger/devdock/svelte",
-        replacement: fromHere("../../src/svelte/index.ts"),
-      },
-      { find: "@chuvenger/devdock", replacement: fromHere("../../src/index.ts") },
-    ],
-  },
   server: {
+    // Allow importing the library source from the repo root.
     fs: { allow: [fromHere("../..")] },
   },
 });
