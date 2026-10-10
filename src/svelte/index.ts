@@ -43,5 +43,6 @@ export type {
   DevDockInstance,
   DevRoute,
   DevCommand,
+  DevView,
   DockPosition,
 } from "../core/types";

@@ -27,8 +27,24 @@ export const dialog = () => q("[role='dialog']");
 export const filterInput = () => q("[role='dialog'] input") as HTMLElement;
 export const rowWith = (text: string) =>
   rowEls().find((b) => b.textContent?.includes(text)) ?? null;
-// Every row in the open panel, in DOM order. The toggle button lives outside
-// the dialog, so this is exactly the item rows.
-export const rowEls = () => qa("[role='dialog'] button");
+// Every row in the open panel, in DOM order. Scoped to the list container so
+// a button rendered by a custom view isn't mistaken for an item row.
+export const rowEls = () => qa("[data-devdock-list] button");
 export const isHighlighted = (row: HTMLElement) =>
   row.style.background !== "" && row.style.background !== "transparent";
+
+// ---- custom views ---------------------------------------------------------
+
+/** A view's host element, by its `id` (or the only one, with no id). */
+export const viewHost = (id?: string) =>
+  q(id ? `[data-devdock-view="${id}"]` : "[data-devdock-view]");
+export const viewHosts = () => qa("[data-devdock-view]");
+/** The `before` / `after` containers the views are placed into. */
+export const viewsSlot = (order: "before" | "after") =>
+  q(`[data-devdock-views="${order}"]`);
+/** Every cloned stylesheet node in the shadow root (`shadow: "inherit"`). */
+export const inheritedStyles = () =>
+  [
+    ...((hostEl()?.shadowRoot?.querySelectorAll('style, link[rel~="stylesheet" i]') ??
+      []) as NodeListOf<HTMLElement>),
+  ];
