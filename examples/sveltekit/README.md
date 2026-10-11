@@ -13,7 +13,7 @@ edits to the library are live.
 
 ## What to try
 
-- Click the green **DEV** button in the bottom-right (or press <kbd>⌘/Ctrl</kbd> + <kbd>.</kbd>).
+- Click the green **DEV** button in the bottom-right (or press <kbd>⌥⇧D</kbd> / <kbd>Alt+Shift+D</kbd>).
 - The **Routes** section lists `/dev`, `/dev/flags` and `/dev/inspector` —
   detected from `import.meta.glob("/src/routes/**/+page.svelte")` in
   `src/routes/+layout.svelte`. Nothing was registered by hand.

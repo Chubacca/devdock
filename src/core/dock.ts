@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { matchHotkey } from "./hotkey";
+import { DEFAULT_HOTKEY, formatHotkey, matchHotkey } from "./hotkey";
 import {
   DEFAULT_LAYER,
   STYLE_MARKER,
@@ -240,7 +240,13 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
   const panel = el("div");
   panel.setAttribute("role", "dialog");
 
+  // The heading is a row: the title, and the shortcut as a key cap. A tooltip
+  // on the button only pays off for someone hovering a button they were about
+  // to click, so the hint goes where it is read instead.
   const heading = el("div");
+  const headingText = el("span");
+  const hotkeyHint = el("kbd");
+  heading.append(headingText, hotkeyHint);
 
   const inputWrap = el("div");
   const input = el("input");
@@ -287,6 +293,7 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
     buttonLabel.className = cls("buttonLabel");
     panel.className = cls("panel");
     heading.className = cls("title");
+    hotkeyHint.className = cls("hotkeyHint");
     inputWrap.className = cls("inputWrap");
     input.className = cls("input");
     body.className = cls("body");
@@ -294,6 +301,13 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
   };
 
   // ---- behavior ---------------------------------------------------------
+
+  /**
+   * The toggle shortcut. Unset means the default; `null` (or an empty string)
+   * means the dock claims no key at all.
+   */
+  const hotkey = (): string | null =>
+    opts.hotkey === undefined ? DEFAULT_HOTKEY : opts.hotkey;
 
   const enabled = (): boolean => {
     const e = opts.enabled;
@@ -711,11 +725,21 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
     });
     Object.assign(root.style, cornerStyle(position));
 
-    heading.textContent = opts.title ?? "Dev Menu";
+    headingText.textContent = opts.title ?? "Dev Menu";
     panel.setAttribute("aria-label", opts.title ?? "Dev Menu");
     Object.assign(panel.style, panelAnchor(position));
 
     buttonLabel.textContent = opts.label ?? "DEV";
+
+    // An unguessable default is only as good as its hint: the heading shows
+    // the chord while the panel is open, the tooltip while it is shut.
+    const spec = hotkey();
+    const chord = spec ? formatHotkey(spec) : "";
+    hotkeyHint.textContent = chord;
+    hotkeyHint.hidden = !chord;
+    button.title = chord
+      ? `${opts.title ?? "Dev Menu"} (${chord})`
+      : (opts.title ?? "Dev Menu");
     // The open state is `aria-expanded`, which the stylesheet also paints —
     // see `BASE_CSS`.
     button.setAttribute("aria-expanded", String(open));
@@ -780,7 +804,8 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
-    if (opts.hotkey && matchHotkey(opts.hotkey, e)) {
+    const spec = hotkey();
+    if (spec && matchHotkey(spec, e)) {
       e.preventDefault();
       setOpen(!open);
     }

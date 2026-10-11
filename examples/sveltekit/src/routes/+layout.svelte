@@ -30,7 +30,6 @@
 
   const options = $derived({
     title: "SvelteKit Dev Menu",
-    hotkey: "mod+.",
     modules,
     commands,
     // Client-side navigation instead of a full page load.

@@ -11,7 +11,7 @@ routes and run custom commands.
 - 🧭 **Route jumper** — list routes manually, or auto-detect your `/dev` routes from React Router or SvelteKit.
 - ⚡ **Custom commands** — register any action (reset DB, toggle a flag, copy a token…), with live labels and check marks for toggles.
 - 📊 **Custom views** — mount your own UI in the popup for anything a list can't say: a frame-rate meter, a sync status, a segmented control.
-- 🔎 Filter box + keyboard nav (↑/↓/Enter/Esc) and an optional global hotkey.
+- ⌨️ **Hotkey out of the box** — ⌥⇧D (Alt+Shift+D elsewhere) toggles the popup, a chord no browser, OS or app tends to want, and the popup's heading says so. Rebind with `hotkey`, or `hotkey={null}` to claim no key. Plus a filter box and keyboard nav (↑/↓/Enter/Esc).
 - 🎨 Zero CSS to import — it brings its own sheet and a high z-index. Theme it with `--devdock-*` custom properties (they cross the shadow boundary, so isolation stays), or merge your own classes into any part with `classNames`.
 - 🛡️ **Shadow DOM isolated** by default — the host page's CSS can't touch it (and vice versa), or `shadow: "inherit"` to let your design system in.
 - 🧩 **Framework-agnostic core** with thin **React** and **Svelte** adapters.
@@ -61,7 +61,6 @@ export function App() {
           { label: "Reset onboarding", run: () => localStorage.clear() },
           { label: "Log current user", run: async () => console.log(await getUser()) },
         ]}
-        hotkey="mod+."
       />
     </>
   );
@@ -182,7 +181,6 @@ in any Svelte 4/5 app:
   const options = {
     routes: [{ path: "/admin", label: "Admin" }],
     commands: [{ label: "Reset", run: () => localStorage.clear() }],
-    hotkey: "mod+.",
     onNavigate: (path) => goto(path), // e.g. SvelteKit's goto
   };
 </script>
@@ -211,7 +209,6 @@ in your app — Vite resolves it at build time — so pass the result in as
   const options = {
     modules,
     onNavigate: goto, // client-side navigation instead of a full load
-    hotkey: "mod+.",
   };
 </script>
 
@@ -584,7 +581,8 @@ write CSS against them and skip `classNames` entirely.
 | `dot`         | `.devdock-dot`         | The status dot inside it. |
 | `buttonLabel` | `.devdock-button-label`| The button's text. |
 | `panel`       | `.devdock-panel`       | The popup. |
-| `title`       | `.devdock-title`       | Its heading. |
+| `title`       | `.devdock-title`       | Its heading — a row holding the title and the hotkey hint. |
+| `hotkeyHint`  | `.devdock-hotkey-hint` | The `<kbd>` in the heading naming the `hotkey`. Hidden with `hotkey: null`. |
 | `inputWrap`   | `.devdock-input-wrap`  | The padding around the filter input. |
 | `input`       | `.devdock-input`       | The filter input. |
 | `body`        | `.devdock-body`        | The scroller holding the views and the list. |
@@ -615,7 +613,7 @@ write CSS against them and skip `classNames` entirely.
 | `position`   | `"bottom-left" \| "bottom-right" \| "top-left" \| "top-right"` | `"bottom-right"` | Corner. |
 | `label`      | `string`                      | `"DEV"`                              | Button text. |
 | `title`      | `string`                      | `"Dev Menu"`                         | Popup heading. |
-| `hotkey`     | `string \| null`              | `null`                               | Toggle shortcut, e.g. `"mod+."`. |
+| `hotkey`     | `string \| null`              | `"alt+shift+d"`                      | Toggle shortcut (⌥⇧D / Alt+Shift+D). `"mod"` in a spec is ⌘ on Mac, Ctrl elsewhere. `null` claims no key. |
 | `zIndex`     | `number`                      | `2147483000`                         | Base z-index. |
 | `container`  | `HTMLElement`                 | `document.body`                      | Where to mount. |
 | `shadow`     | `boolean \| "inherit"`        | `true`, or `"inherit"` with `classNames` | Render in a shadow root (CSS-isolated). `"inherit"` copies the page's styles in; `false` renders in the light DOM. Read once, at creation. |
@@ -636,6 +634,8 @@ write CSS against them and skip `classNames` entirely.
 
 - `createDevDock(options?): { update(options), destroy() }` — mounts the dock; no-ops during SSR (no `document`).
 - `matchHotkey(spec, event)` — the hotkey matcher (exported for reuse).
+- `formatHotkey(spec)` — a spec as a human reads it: `"⌥⇧D"` on Mac, `"Alt+Shift+D"` elsewhere.
+- `DEFAULT_HOTKEY` — the default spec, `"alt+shift+d"`.
 
 ### `@chuvenger/devdock/react`
 
