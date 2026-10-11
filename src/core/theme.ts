@@ -18,6 +18,7 @@ export const partClass: Record<DockPart, string> = {
   buttonLabel: "devdock-button-label",
   panel: "devdock-panel",
   title: "devdock-title",
+  hotkeyHint: "devdock-hotkey-hint",
   inputWrap: "devdock-input-wrap",
   input: "devdock-input",
   body: "devdock-body",
@@ -113,6 +114,10 @@ export const BASE_CSS = `
 }
 
 .devdock-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--devdock-border, #2a2e37);
   font-size: 12px;
@@ -120,6 +125,20 @@ export const BASE_CSS = `
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--devdock-muted, #8b909c);
+}
+
+.devdock-hotkey-hint {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  /* The heading's tracking and casing are for words, not for a key cap. */
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--devdock-subtle, #6b7280);
+  border: 1px solid var(--devdock-border, #2a2e37);
+  border-radius: var(--devdock-radius-xs, 4px);
 }
 
 .devdock-input-wrap { padding: 8px; }

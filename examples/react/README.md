@@ -12,7 +12,7 @@ to the library are reflected live — no rebuild needed.
 
 ## What to try
 
-- Click the green **DEV** button in the bottom-right (or press <kbd>⌘/Ctrl</kbd> + <kbd>.</kbd>).
+- Click the green **DEV** button in the bottom-right (or press <kbd>⌥⇧D</kbd> / <kbd>Alt+Shift+D</kbd>).
 - Routes marked as dev destinations (`/dashboard`, `/billing`, `/style-guide`)
   are **auto-detected** from the React Router config and grouped via `handle.devGroup`.
 - `/settings` carries no marker, so it appears only if you add `staticRoutes` to

@@ -128,6 +128,8 @@ export interface DevDockClassNames {
   panel?: ClassValue;
   /** The popup's heading (`title`). */
   title?: ClassValue;
+  /** The `<kbd>` in the heading naming the `hotkey`. */
+  hotkeyHint?: ClassValue;
   /** The padded wrapper around the filter input. */
   inputWrap?: ClassValue;
   /** The filter input. */
@@ -209,8 +211,14 @@ export interface DevDockOptions {
   /** Heading shown at the top of the popup. Default: "Dev Menu". */
   title?: string;
   /**
-   * Optional keyboard shortcut to toggle the popup, e.g. "mod+." or
-   * "ctrl+k". "mod" maps to ⌘ on Mac and Ctrl elsewhere. Default: none.
+   * Keyboard shortcut to toggle the popup, e.g. `"alt+shift+d"` or `"mod+k"`.
+   * "mod" maps to ⌘ on Mac and Ctrl elsewhere.
+   *
+   * Default: `"alt+shift+d"` (⌥⇧D / Alt+Shift+D) — off the contested
+   * ⌘/Ctrl ground, so the dock doesn't take a key the browser, the OS or your
+   * app already wanted.
+   *
+   * Pass `null` to claim no key — the button still opens the dock.
    */
   hotkey?: string | null;
   /** Base z-index for the floating UI. Default: 2147483000. */

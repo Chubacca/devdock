@@ -35,7 +35,6 @@ function DevTools() {
        every static route instead — `/settings` shows up only then. */
     <ReactRouterDevDock
       title="Example Dev Menu"
-      hotkey="mod+."
       // The views below are built from the app's own stylesheet (`app.css`),
       // which a shadow root would otherwise keep out. Drop this and watch them
       // render unstyled.

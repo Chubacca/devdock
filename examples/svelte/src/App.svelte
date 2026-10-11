@@ -37,7 +37,6 @@
   // Reactive options: the action's update() fires whenever this changes.
   const options = $derived({
     title: "Svelte Dev Menu",
-    hotkey: "mod+.",
     routes,
     commands,
     onNavigate: (p: string) => (page = p),
@@ -49,7 +48,7 @@
   <p>Current page: <code>{page}</code></p>
   <p>
     Open the green <strong>DEV</strong> button in the bottom-right (or press
-    <kbd>⌘/Ctrl</kbd> + <kbd>.</kbd>). Selecting a route updates the page state
+    <kbd>⌥⇧D</kbd> / <kbd>Alt+Shift+D</kbd>). Selecting a route updates the page state
     via <code>onNavigate</code>; commands run their handlers.
   </p>
   <p>The dock is the same core used by the React adapter — no React here.</p>
