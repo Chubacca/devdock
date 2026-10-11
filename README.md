@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@chuvenger/devdock.svg)](https://www.npmjs.com/package/@chuvenger/devdock)
 [![license](https://img.shields.io/npm/l/@chuvenger/devdock.svg)](./LICENSE)
 
-A tiny, dependency-free dev-only floating button. It sits in a corner of your
+A tiny dev-only floating button. It sits in a corner of your
 app, **only renders in development**, and opens a popup to jump between dev
 routes and run custom commands.
 
@@ -12,7 +12,7 @@ routes and run custom commands.
 - ⚡ **Custom commands** — register any action (reset DB, toggle a flag, copy a token…), with live labels and check marks for toggles.
 - 📊 **Custom views** — mount your own UI in the popup for anything a list can't say: a frame-rate meter, a sync status, a segmented control.
 - 🔎 Filter box + keyboard nav (↑/↓/Enter/Esc) and an optional global hotkey.
-- 🎨 Zero CSS to import — inline-styled, high z-index, no runtime dependencies.
+- 🎨 Zero CSS to import — it brings its own sheet and a high z-index. Theme it with `--devdock-*` custom properties (they cross the shadow boundary, so isolation stays), or merge your own classes into any part with `classNames`.
 - 🛡️ **Shadow DOM isolated** by default — the host page's CSS can't touch it (and vice versa), or `shadow: "inherit"` to let your design system in.
 - 🧩 **Framework-agnostic core** with thin **React** and **Svelte** adapters.
 
@@ -440,11 +440,11 @@ tree-shakes it: `{import.meta.env.DEV && <DevDock … />}`.
 
 ## Styling & isolation
 
-The dock is styled entirely with inline styles (no stylesheet to import) and,
-by default, renders inside an **open shadow root** attached to a host element in
-`document.body`. That means the host page's CSS can't leak in and the dock's
-styles can't leak out. The host element carries a `data-devdock` attribute in
-every mode.
+The dock ships its own stylesheet — one it injects itself, nothing to
+import, themeable with [custom properties](#theming-it-custom-properties) — and, by default, renders inside an **open shadow root** attached to a
+host element in `document.body`. The host page's CSS can't leak in and the
+dock's styles can't leak out. The host element carries a `data-devdock`
+attribute in every mode.
 
 | `shadow` | Where it renders | The page's CSS |
 | -------- | ---------------- | -------------- |
@@ -453,8 +453,152 @@ every mode.
 | `false` | light DOM | applies directly |
 
 Use `"inherit"` (or `false`) when a [custom view](#views-and-your-css) renders
-your app's own components and needs its stylesheet. Otherwise leave it alone —
-isolation is the reason the dock survives arbitrary host CSS.
+your app's own components and needs its stylesheet, or when you're restyling
+the dock with `classNames` below — passing `classNames` switches the default to
+`"inherit"` for you, since a class of yours is defined by a stylesheet that has
+to cross the boundary. Otherwise leave it alone: isolation is the reason the
+dock survives arbitrary host CSS.
+
+There are two ways to change how it looks, and they compose:
+
+| | Reach | Costs you |
+| --- | --- | --- |
+| [Custom properties](#theming-it-custom-properties) | colours, radii, font, size | nothing — they inherit **through** the shadow boundary, so the dock stays isolated |
+| [`classNames`](#restyling-it-classnames) | anything CSS can say | your stylesheet has to reach the dock, so `shadow` becomes `"inherit"` |
+
+Reach for the properties first; drop to `classNames` when you need something
+they don't cover.
+
+### Theming it: custom properties
+
+Set any of these on `:root`, or on the `[data-devdock]` host to theme one dock,
+and you're done — no `shadow` change, no classes, nothing to import:
+
+```css
+:root {
+  --devdock-bg: #ffffff;
+  --devdock-fg: #0f172a;
+  --devdock-accent: #a855f7;
+  --devdock-border: #e2e8f0;
+  --devdock-radius: 16px;
+  --devdock-width: 320px;
+}
+```
+
+| Property | Default | What it paints |
+| -------- | ------- | -------------- |
+| `--devdock-font`        | system UI stack | The dock's font family. |
+| `--devdock-bg`          | `#16181d` | Popup background. |
+| `--devdock-fg`          | `#e7e9ee` | Primary text — rows, the input. |
+| `--devdock-muted`       | `#8b909c` | The title, a view's label. |
+| `--devdock-subtle`      | `#6b7280` | Group headings, route paths, the empty state. |
+| `--devdock-border`      | `#2a2e37` | Every border. |
+| `--devdock-accent`      | `#2563eb` | Highlighted row, and the button while open. |
+| `--devdock-accent-fg`   | `#e7e9ee` | Text on the highlighted row. |
+| `--devdock-button-bg`   | `#111317` | The button, closed. |
+| `--devdock-button-fg`   | `#fff`    | The button's text. |
+| `--devdock-input-bg`    | `#0f1115` | The filter input. |
+| `--devdock-success`     | `#22c55e` | The status dot and toggle check marks. |
+| `--devdock-radius`      | `12px`    | Popup corners. |
+| `--devdock-radius-sm`   | `8px`     | Rows and the input. |
+| `--devdock-width`       | `280px`   | Popup width. |
+| `--devdock-max-height`  | `70vh`    | Popup height before it scrolls. |
+| `--devdock-shadow`      | `0 12px 40px rgba(0,0,0,.45)` | The popup's shadow. |
+
+They're read as `var(--devdock-x, default)` and never declared inside the
+dock, which is what lets a value you set outside win — a declaration of ours
+in the shadow tree would have beaten the one inheriting in.
+
+### Restyling it: `classNames`
+
+Every part of the dock takes a class of yours, **merged onto** the one it
+already carries rather than replacing it:
+
+```tsx
+<DevDock
+  classNames={{
+    panel: "w-96 max-h-[80vh] bg-white text-slate-900 border-slate-200",
+    button: "bg-emerald-600 rounded-md",
+    input: "bg-slate-50 border-slate-300",
+    row: "rounded-none",
+    rowActive: "bg-emerald-100 text-emerald-900",
+  }}
+/>
+```
+
+Each entry takes **anything [`cn`](https://www.npmjs.com/package/cn) takes** —
+a string, an array, a conditional, an object — so a wrapper of your own can
+forward its props straight through without a helper import:
+
+```tsx
+export function AppDock({ className }: { className?: string }) {
+  return (
+    <DevDock
+      classNames={{
+        panel: ["bg-red-100", className],
+        row: ["px-3", compact && "py-1", { "opacity-50": muted }],
+      }}
+    />
+  );
+}
+```
+
+Values are merged with [`cn`](https://www.npmjs.com/package/cn), so conflicts
+resolve the way you'd write them by hand: `rowActive: "text-emerald-900"` over
+`row: "text-slate-700"` keeps emerald and **drops** slate, instead of putting
+both in the attribute and letting Tailwind's own sheet order pick the winner.
+The dock's `devdock-*` classes aren't utilities, so they pass through untouched.
+
+No `!important`, no `[&_div]` reaching: a plain utility class wins on its own.
+Two things in the dock's sheet make that true, and they're worth knowing about
+because they also say when it *doesn't*:
+
+- **It lives in a cascade layer** (`devdock`), declared *after* Tailwind's
+  `base` and *before* its `utilities`. Layered rules lose to unlayered ones
+  whatever their specificity, so this is what lets a Tailwind v4 utility
+  through while keeping a reset in `base` from stripping the dock's chrome.
+- **Each rule is worth exactly one class** — one bare `.devdock-*`, with any
+  state selector tucked inside `:where()`. That's what settles ties when the
+  layer is off: the sheet goes in first, so a page-level reset
+  (`button { … }`, `*`) loses to it and your class beats it.
+
+If the page's own CSS is unlayered — Tailwind v3, a hand-written reset —
+turn the layer off with `cssLayer={false}`, or the page's reset will outrank
+the dock itself. (A page with no `@layer` anywhere is unaffected either way.)
+If you run your own layers, name the dock's with `cssLayer="chrome"`: it then
+ships no order statement at all, and you place it in your own `@layer` line,
+where you know the names around it.
+
+Not themeable this way: the corner placement, the z-index, and the popup's
+anchoring. Those are computed from `position`/`zIndex` and stay inline.
+
+### The parts
+
+Each one carries its `devdock-*` class in every mode, so you can also just
+write CSS against them and skip `classNames` entirely.
+
+| `classNames` key | Class | What it is |
+| ---------------- | ----- | ---------- |
+| `root`        | `.devdock-root`        | The fixed wrapper holding the button and the popup. |
+| `button`      | `.devdock-button`      | The floating button. `[aria-expanded="true"]` while open. |
+| `dot`         | `.devdock-dot`         | The status dot inside it. |
+| `buttonLabel` | `.devdock-button-label`| The button's text. |
+| `panel`       | `.devdock-panel`       | The popup. |
+| `title`       | `.devdock-title`       | Its heading. |
+| `inputWrap`   | `.devdock-input-wrap`  | The padding around the filter input. |
+| `input`       | `.devdock-input`       | The filter input. |
+| `body`        | `.devdock-body`        | The scroller holding the views and the list. |
+| `list`        | `.devdock-list`        | The routes/commands list. |
+| `section`     | `.devdock-section`     | One group's wrapper, in the list or around a view. |
+| `group`       | `.devdock-group`       | A group heading. |
+| `row`         | `.devdock-row`         | Every row. `[data-active]` on the highlighted one. |
+| `rowActive`   | —                      | Added to the highlighted row, on top of `row`. |
+| `rowLabel`    | `.devdock-row-label`   | A row's label. |
+| `rowPath`     | `.devdock-row-path`    | The monospace path on a route row. |
+| `check`       | `.devdock-check`       | A toggle command's check mark. |
+| `empty`       | `.devdock-empty`       | The "Nothing here." placeholder. |
+| `viewLabel`   | `.devdock-view-label`  | A view's own label under a shared heading. |
+| `view`        | `.devdock-view`        | Each view's host element. |
 
 ## API
 
@@ -474,11 +618,17 @@ isolation is the reason the dock survives arbitrary host CSS.
 | `hotkey`     | `string \| null`              | `null`                               | Toggle shortcut, e.g. `"mod+."`. |
 | `zIndex`     | `number`                      | `2147483000`                         | Base z-index. |
 | `container`  | `HTMLElement`                 | `document.body`                      | Where to mount. |
-| `shadow`     | `boolean \| "inherit"`        | `true`                               | Render in a shadow root (CSS-isolated). `"inherit"` copies the page's styles in; `false` renders in the light DOM. Read once, at creation. |
+| `shadow`     | `boolean \| "inherit"`        | `true`, or `"inherit"` with `classNames` | Render in a shadow root (CSS-isolated). `"inherit"` copies the page's styles in; `false` renders in the light DOM. Read once, at creation. |
+| `classNames` | `DevDockClassNames`           | `{}`                                 | [Classes merged onto the dock's parts](#restyling-it-classnames) with `cn`, e.g. `{ panel: ["w-96", className] }`. |
+| `cssLayer`   | `string \| false`            | `"devdock"`                          | The cascade layer the dock's stylesheet goes in. A name of your own ships no order statement — place it yourself. `false` for an unlayered page (Tailwind v3). Read once, at creation. |
 
 `DevRoute`: `{ path: string; label?: string; group?: string }`
 
 `DevCommand`: `{ label: string | (() => string); run: () => void | Promise<void>; checked?: () => boolean; id?: string; group?: string; keepOpen?: boolean }`
+
+`DevDockClassNames`: one optional `ClassValue` per part — see [the parts](#the-parts).
+
+`ClassValue`: whatever `cn` accepts — `string | number | bigint | boolean | null | undefined | ClassValue[] | Record<string, unknown>`. Falsy entries drop out, conflicting Tailwind classes collapse to the last one.
 
 `DevView`: `{ mount: (host: HTMLElement) => void | (() => void); id?: string; label?: string; group?: string; order?: "before" | "after" }` — on the React adapter, `render: () => ReactNode` replaces `mount`.
 
