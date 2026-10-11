@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
@@ -72,6 +72,34 @@ describe("ReactRouterDevDock", () => {
     await user.click(toggle());
     await user.click(rowWith("/admin")!);
     expect(navSpy).toHaveBeenCalledWith("/admin");
+  });
+
+  it("forwards loadHandles, so lazy route modules get their label", async () => {
+    const user = userEvent.setup();
+    // The shape framework mode builds for every route: `handle` reachable only
+    // by loading the module. See react-router.lazy.test.tsx for the detection
+    // rules; this covers the prop making it from the dock to the detector.
+    const router = createMemoryRouter([
+      {
+        path: "/",
+        element: (
+          <>
+            <Outlet />
+            <ReactRouterDevDock enabled loadHandles />
+          </>
+        ),
+        children: [
+          {
+            path: "dev/style-guide",
+            lazy: { handle: async () => ({ devLabel: "Style Guide" }) },
+          } as unknown as Parameters<typeof createMemoryRouter>[0][number],
+        ],
+      },
+    ]);
+    render(<RouterProvider router={router} />);
+    await user.click(toggle());
+    expect(rowWith("/dev/style-guide")).toBeTruthy();
+    await waitFor(() => expect(rowWith("Style Guide")).toBeTruthy());
   });
 
   it("scopes auto-detected routes with a glob match", async () => {
