@@ -40,6 +40,8 @@ export function devdock(
 export { createDevDock } from "../core/dock";
 export type {
   DevDockOptions,
+  DevDockClassNames,
+  ClassValue,
   DevDockInstance,
   DevRoute,
   DevCommand,

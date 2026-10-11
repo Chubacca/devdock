@@ -165,7 +165,9 @@ describe('shadow: "inherit"', () => {
     addStyle(".after-destroy { color: red }");
     await Promise.resolve();
     await Promise.resolve();
-    expect(shadow.querySelectorAll("style")).toHaveLength(0);
+    expect(
+      shadow.querySelectorAll("style:not([data-devdock-styles])"),
+    ).toHaveLength(0);
   });
 
   it("lets a view use the page's CSS", async () => {

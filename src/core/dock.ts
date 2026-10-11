@@ -1,4 +1,12 @@
+import { cn } from "cn";
 import { matchHotkey } from "./hotkey";
+import {
+  DEFAULT_LAYER,
+  STYLE_MARKER,
+  dockStyles,
+  partClass,
+  type DockPart,
+} from "./theme";
 import type {
   DevCommand,
   DevDockInstance,
@@ -100,39 +108,15 @@ type Styles = Partial<CSSStyleDeclaration>;
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
-  styles?: Styles,
   props?: Partial<HTMLElementTagNameMap[K]>,
 ): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
-  if (styles) Object.assign(node.style, styles);
   if (props) Object.assign(node, props);
   return node;
 }
 
-/** The small uppercase heading above a group of rows, or above a view. */
-function sectionHeading(text: string): HTMLDivElement {
-  return el(
-    "div",
-    {
-      padding: "6px 8px 2px",
-      fontSize: "10px",
-      fontWeight: "700",
-      letterSpacing: "0.6px",
-      textTransform: "uppercase",
-      color: "#6b7280",
-    },
-    { textContent: text },
-  );
-}
-
-/** A view's own label, when several views share one `group` heading. */
-function viewLabel(text: string): HTMLDivElement {
-  return el(
-    "div",
-    { padding: "4px 8px 0", fontSize: "11px", color: "#8b909c" },
-    { textContent: text },
-  );
-}
+/** Every part `classNames` can address, in a fixed order. */
+const PARTS = Object.keys(partClass) as DockPart[];
 
 function cornerStyle(position: DockPosition): Styles {
   const gap = "16px";
@@ -157,9 +141,6 @@ function panelAnchor(position: DockPosition): Styles {
     [isRight ? "right" : "left"]: "0",
   } as Styles;
 }
-
-const FONT =
-  "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
 
 /**
  * Pair each view with the key it is reconciled by: its `id`, or its index.
@@ -195,6 +176,25 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
   }
 
   let opts: DevDockOptions = { ...initial };
+  /**
+   * A part's classes: the `devdock-*` one it always carries, then whatever
+   * the caller passed for it. Read from `opts` at paint time, so `update()`
+   * can change a class without rebuilding anything.
+   *
+   * `cn` rather than a plain join, because the merge is between Tailwind
+   * classes and the last one has to win: `rowActive: "text-emerald-900"` over
+   * `row: "text-slate-700"` is a conflict the class attribute can't settle on
+   * its own — the stylesheet's order decides, and that isn't ours.
+   */
+  const cls = (...parts: DockPart[]): string =>
+    cn(parts.map((part) => [partClass[part], opts.classNames?.[part]]));
+  /**
+   * Identity of the caller's classes, folded into the signatures that decide
+   * whether the per-render DOM (rows, sections, view wrappers) is reusable.
+   */
+  const classSig = (): string =>
+    PARTS.map((p) => cn(opts.classNames?.[p])).join("\u0000");
+
   let open = false;
   let query = "";
   let active = 0;
@@ -205,65 +205,49 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
   // page's CSS. `data-devdock` stays on the host so it's discoverable.
   const host = el("div");
   host.setAttribute("data-devdock", "");
-  const shadowMode = initial.shadow ?? true;
+  // Classes are defined by a stylesheet of the caller's, which an isolated
+  // shadow root would keep out — so passing `classNames` flips the default to
+  // `"inherit"`. An explicit `shadow` still wins.
+  const shadowMode = initial.shadow ?? (initial.classNames ? "inherit" : true);
   const useShadow =
     shadowMode !== false && typeof host.attachShadow === "function";
   const shadowRoot = useShadow ? host.attachShadow({ mode: "open" }) : null;
   const mountPoint: Node = shadowRoot ?? host;
 
+  // The dock's own styles. They go in *first* — ahead of the inherited clones
+  // below, at the top of `<head>` in light-DOM mode — because that is what
+  // fixes the cascade layer order, and what settles a specificity tie in the
+  // caller's favour. See `dockStyles`.
+  const baseStyle = el("style", {
+    textContent: dockStyles(initial.cssLayer ?? DEFAULT_LAYER),
+  });
+  baseStyle.setAttribute(STYLE_MARKER, "");
+  if (shadowRoot) mountPoint.appendChild(baseStyle);
+
   // `shadow: "inherit"` keeps the isolation boundary but copies the page's
   // styles across it, so a view can render the host app's own components.
   // The clones live in one wrapper so re-syncing is a single replaceChildren;
   // `display: contents` keeps it out of the layout.
-  const styleSlot =
-    shadowRoot && shadowMode === "inherit"
-      ? el("div", { display: "contents" })
-      : null;
-  if (styleSlot) mountPoint.appendChild(styleSlot);
+  const styleSlot = shadowRoot && shadowMode === "inherit" ? el("div") : null;
+  if (styleSlot) {
+    styleSlot.style.display = "contents";
+    mountPoint.appendChild(styleSlot);
+  }
 
-  const root = el("div", { fontFamily: FONT });
+  const root = el("div");
   mountPoint.appendChild(root);
 
-  const panel = el("div", {
-    width: "280px",
-    maxHeight: "min(70vh, 480px)",
-    display: "flex",
-    flexDirection: "column",
-    background: "#16181d",
-    color: "#e7e9ee",
-    border: "1px solid #2a2e37",
-    borderRadius: "12px",
-    boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
-    overflow: "hidden",
-  });
+  const panel = el("div");
   panel.setAttribute("role", "dialog");
 
-  const heading = el("div", {
-    padding: "10px 12px",
-    borderBottom: "1px solid #2a2e37",
-    fontSize: "12px",
-    fontWeight: "600",
-    letterSpacing: "0.4px",
-    textTransform: "uppercase",
-    color: "#8b909c",
-  });
+  const heading = el("div");
 
-  const inputWrap = el("div", { padding: "8px" });
-  const input = el("input", {
-    width: "100%",
-    boxSizing: "border-box",
-    padding: "8px 10px",
-    fontSize: "13px",
-    color: "#e7e9ee",
-    background: "#0f1115",
-    border: "1px solid #2a2e37",
-    borderRadius: "8px",
-    outline: "none",
-  });
+  const inputWrap = el("div");
+  const input = el("input");
   input.placeholder = "Filter…";
   inputWrap.appendChild(input);
 
-  const list = el("div", { padding: "0 6px 8px" });
+  const list = el("div");
   list.setAttribute("data-devdock-list", "");
 
   const viewsBefore = el("div");
@@ -273,43 +257,41 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
 
   // One scroller around the views and the list, so a tall view can't push the
   // panel past its max height.
-  const body = el("div", {
-    overflowY: "auto",
-    display: "flex",
-    flexDirection: "column",
-  });
+  const body = el("div");
   body.append(viewsBefore, list, viewsAfter);
 
   panel.append(heading, inputWrap, body);
 
-  const button = el("button", {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "6px",
-    padding: "8px 12px",
-    fontSize: "12px",
-    fontWeight: "700",
-    letterSpacing: "0.6px",
-    color: "#fff",
-    background: "#111317",
-    border: "1px solid #2a2e37",
-    borderRadius: "999px",
-    boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
-    cursor: "pointer",
-  });
+  const button = el("button");
   button.type = "button";
   button.setAttribute("aria-label", "Toggle dev menu");
-  const dot = el("span", {
-    width: "8px",
-    height: "8px",
-    borderRadius: "999px",
-    background: "#22c55e",
-    display: "inline-block",
-  });
+  const dot = el("span");
   const buttonLabel = el("span");
   button.append(dot, buttonLabel);
 
   root.appendChild(button);
+
+  /** The small uppercase heading above a group of rows, or above a view. */
+  const sectionHeading = (text: string) =>
+    el("div", { className: cls("group"), textContent: text });
+
+  /** A view's own label, when several views share one `group` heading. */
+  const viewLabel = (text: string) =>
+    el("div", { className: cls("viewLabel"), textContent: text });
+
+  /** Classes for the parts that live as long as the dock does. */
+  const paintClasses = () => {
+    root.className = cls("root");
+    button.className = cls("button");
+    dot.className = cls("dot");
+    buttonLabel.className = cls("buttonLabel");
+    panel.className = cls("panel");
+    heading.className = cls("title");
+    inputWrap.className = cls("inputWrap");
+    input.className = cls("input");
+    body.className = cls("body");
+    list.className = cls("list");
+  };
 
   // ---- behavior ---------------------------------------------------------
 
@@ -430,12 +412,15 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
     }
   };
 
+  // The highlight is an attribute, not an inline colour: that keeps it in the
+  // stylesheet, where `classNames.rowActive` (or a rule of your own on
+  // `.devdock-row[data-active]`) can take it over.
   const paintActive = () => {
     rows.forEach((row, idx) => {
       const isActive = idx === active;
-      row.node.style.background = isActive ? "#2563eb" : "transparent";
-      if (row.pathSpan)
-        row.pathSpan.style.color = isActive ? "#cfe0ff" : "#6b7280";
+      if (isActive) row.node.setAttribute("data-active", "");
+      else row.node.removeAttribute("data-active");
+      row.node.className = isActive ? cls("row", "rowActive") : cls("row");
     });
   };
 
@@ -451,7 +436,7 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
     const filtered = getFiltered();
     active = Math.min(active, Math.max(0, filtered.length - 1));
 
-    const sig = filtered.map(itemSig).join("\n");
+    const sig = [classSig(), ...filtered.map(itemSig)].join("\n");
     if (sig === rowsSig) {
       // Same items in the same order: keep the nodes, refresh the highlight.
       // The items themselves are rebuilt on every call, so re-point each row
@@ -472,11 +457,7 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
 
     if (filtered.length === 0) {
       list.appendChild(
-        el(
-          "div",
-          { padding: "12px", fontSize: "13px", color: "#6b7280" },
-          { textContent: "Nothing here." },
-        ),
+        el("div", { className: cls("empty"), textContent: "Nothing here." }),
       );
       return;
     }
@@ -489,47 +470,23 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
     }
 
     for (const [groupName, groupItems] of groups) {
-      const section = el("div", { marginTop: "6px" });
+      const section = el("div", { className: cls("section") });
       section.appendChild(sectionHeading(groupName));
 
       for (const it of groupItems) {
         const idx = filtered.indexOf(it);
-        const row = el("button", {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "8px",
-          width: "100%",
-          textAlign: "left",
-          padding: "8px 10px",
-          fontSize: "13px",
-          color: "#e7e9ee",
-          background: "transparent",
-          border: "none",
-          borderRadius: "8px",
-          cursor: "pointer",
-        });
+        const row = el("button", { className: cls("row") });
         row.type = "button";
 
-        const labelSpan = el("span", {
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        });
+        const labelSpan = el("span", { className: cls("rowLabel") });
         row.appendChild(labelSpan);
 
         let pathSpan: HTMLSpanElement | null = null;
         if (it.kind === "route" && it.route.path !== it.label) {
-          pathSpan = el(
-            "span",
-            {
-              fontSize: "11px",
-              color: "#6b7280",
-              fontFamily: "ui-monospace, SFMono-Regular, monospace",
-              flexShrink: "0",
-            },
-            { textContent: it.route.path },
-          );
+          pathSpan = el("span", {
+            className: cls("rowPath"),
+            textContent: it.route.path,
+          });
           row.appendChild(pathSpan);
         }
 
@@ -539,12 +496,7 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
         let checkSpan: HTMLSpanElement | null = null;
         if (it.kind === "command" && it.checked !== null) {
           row.setAttribute("role", "checkbox");
-          checkSpan = el("span", {
-            flexShrink: "0",
-            width: "12px",
-            textAlign: "center",
-            color: "#22c55e",
-          });
+          checkSpan = el("span", { className: cls("check") });
           row.appendChild(checkSpan);
         }
 
@@ -594,13 +546,14 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
 
   const renderViews = () => {
     const keyed = keyViews(opts.views ?? []);
-    const sig = keyed
-      .map(({ view, key }) =>
+    const sig = [
+      classSig(),
+      ...keyed.map(({ view, key }) =>
         [key, viewOrder(view), view.group ?? "", view.label ?? ""].join(
           "\u0000",
         ),
-      )
-      .join("\n");
+      ),
+    ].join("\n");
     if (sig === viewsSig) return;
     viewsSig = sig;
 
@@ -641,7 +594,7 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
       }
 
       for (const section of sections.values()) {
-        const wrap = el("div", { marginTop: "6px" });
+        const wrap = el("div", { className: cls("section") });
         if (section.heading) wrap.appendChild(sectionHeading(section.heading));
         for (const { view, key } of section.items) {
           if (view.group != null && view.label)
@@ -651,7 +604,7 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
             wrap.appendChild(existing.host);
             continue;
           }
-          const viewHost = el("div", { padding: "2px 8px 6px" });
+          const viewHost = el("div", { className: cls("view") });
           viewHost.setAttribute("data-devdock-view", view.id ?? "");
           wrap.appendChild(viewHost);
           pending.push({ view, key, host: viewHost });
@@ -697,8 +650,12 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
       }
     }
 
+    // `:not([data-devdock-styles])`: in light-DOM mode a dock puts its own
+    // sheet in the document, and re-cloning it here would be noise.
     const sheets = [
-      ...document.querySelectorAll('style, link[rel~="stylesheet" i]'),
+      ...document.querySelectorAll(
+        `style:not([${STYLE_MARKER}]), link[rel~="stylesheet" i]`,
+      ),
     ];
     const sig = sheets
       .map((n) => `${n.tagName}\u0000${n.getAttribute("href") ?? n.textContent}`)
@@ -759,8 +716,10 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
     Object.assign(panel.style, panelAnchor(position));
 
     buttonLabel.textContent = opts.label ?? "DEV";
-    button.style.background = open ? "#2563eb" : "#111317";
+    // The open state is `aria-expanded`, which the stylesheet also paints —
+    // see `BASE_CSS`.
     button.setAttribute("aria-expanded", String(open));
+    paintClasses();
   };
 
   function setOpen(next: boolean) {
@@ -838,6 +797,10 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
 
   const mount = () => {
     if (mounted) return;
+    // Light DOM: the sheet can't ride along inside the host, so it goes at the
+    // very top of <head>, ahead of the page's own styles.
+    if (!shadowRoot)
+      (document.head ?? document.documentElement).prepend(baseStyle);
     (opts.container ?? document.body).appendChild(host);
     addListeners();
     syncStyles();
@@ -848,6 +811,7 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
     if (!mounted) return;
     removeListeners();
     unwatchStyles();
+    if (!shadowRoot) baseStyle.remove();
     host.remove();
     mounted = false;
   };

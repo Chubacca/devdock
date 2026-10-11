@@ -16,10 +16,9 @@ export const q = (sel: string) =>
 export const qa = (sel: string) =>
   [...(root()?.querySelectorAll(sel) ?? [])] as HTMLElement[];
 
-// The fixed-position wrapper that carries the corner placement. It's the
-// shadow root's own child, not the `data-devdock` host.
-export const shell = () =>
-  (root()?.firstElementChild ?? null) as HTMLElement | null;
+// The fixed-position wrapper that carries the corner placement. It's inside
+// the shadow root, not the `data-devdock` host.
+export const shell = () => q(".devdock-root");
 
 export const byLabel = (label: string) => q(`[aria-label="${label}"]`);
 export const toggle = () => byLabel("Toggle dev menu") as HTMLElement;
@@ -30,8 +29,10 @@ export const rowWith = (text: string) =>
 // Every row in the open panel, in DOM order. Scoped to the list container so
 // a button rendered by a custom view isn't mistaken for an item row.
 export const rowEls = () => qa("[data-devdock-list] button");
+// The highlight is an attribute the dock's stylesheet paints, so jsdom (which
+// doesn't need to resolve the cascade for this) can read it directly.
 export const isHighlighted = (row: HTMLElement) =>
-  row.style.background !== "" && row.style.background !== "transparent";
+  row.hasAttribute("data-active");
 
 // ---- custom views ---------------------------------------------------------
 
@@ -42,9 +43,13 @@ export const viewHosts = () => qa("[data-devdock-view]");
 /** The `before` / `after` containers the views are placed into. */
 export const viewsSlot = (order: "before" | "after") =>
   q(`[data-devdock-views="${order}"]`);
-/** Every cloned stylesheet node in the shadow root (`shadow: "inherit"`). */
+/**
+ * Every cloned stylesheet node in the shadow root (`shadow: "inherit"`) —
+ * minus the dock's own sheet, which is there in every mode.
+ */
 export const inheritedStyles = () =>
   [
-    ...((hostEl()?.shadowRoot?.querySelectorAll('style, link[rel~="stylesheet" i]') ??
-      []) as NodeListOf<HTMLElement>),
+    ...((hostEl()?.shadowRoot?.querySelectorAll(
+      'style:not([data-devdock-styles]), link[rel~="stylesheet" i]',
+    ) ?? []) as NodeListOf<HTMLElement>),
   ];
