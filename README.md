@@ -133,6 +133,43 @@ arguments — to reach one, use a command that navigates to a known id:
 <ReactRouterDevDock staticRoutes match={(r) => r.path.length < 20} />
 ```
 
+### React Router framework mode (`app/routes.ts`)
+
+Framework mode works, with one wrinkle: its routes are **lazy**. `handle` is an
+export of the route *module*, so until that module loads it isn't on the route
+object the adapter reads — a `handle.devLabel` on a page you haven't opened has
+nothing to take effect on. Such routes still list by path convention (`/dev/*`),
+labelled with their path.
+
+`loadHandles` closes the gap by importing the lazy route modules to read their
+`handle`:
+
+```tsx
+<ReactRouterDevDock loadHandles />
+```
+
+```tsx
+// app/routes/dev.style-guide.tsx
+export const handle = { devLabel: "Style Guide", devGroup: "Internal" };
+```
+
+It's opt-in because reading a handle up front means importing the module up
+front — every lazy route's module, and any side effect its import carries. That
+only ever happens in development (the dock doesn't render in production), but it
+is real work on a dev page load. Leave it off if path labels are fine; turn it
+on if you want `devLabel` / `devGroup`, or `handle.dev` to mark a route that
+isn't under `/dev` (without it, such a route is never seen at all).
+
+One thing it can't do: list a route the router hasn't discovered yet. Framework
+mode fetches route branches as links render, so the dock watches the tree and
+picks them up as they arrive — but a dev route nothing links to stays unknown
+until you navigate there. Ship the whole tree up front with
+`routeDiscovery: { mode: "initial" }` in `react-router.config.ts`.
+
+`loadHandles` is not framework-only: a plain data router with
+`lazy: () => import("./route")` hides `handle` exactly the same way, and the
+flag reads it the same way.
+
 ## Svelte
 
 `@chuvenger/devdock/svelte` exports a Svelte action — no extra build step, works
@@ -457,8 +494,9 @@ isolation is the reason the dock survives arbitrary host CSS.
 
 ### `@chuvenger/devdock/react-router`
 
-- `ReactRouterDevDock(props)` — `DevDock` wired to `useNavigate()` + auto-detected routes. Extra props: `match?: RouteMatcher`, `staticRoutes?: boolean`.
-- `useDetectedRoutes(options?): DevRoute[]` — the detected routes (build your own UI). Takes `{ match?, staticRoutes? }`, or a bare matcher.
+- `ReactRouterDevDock(props)` — `DevDock` wired to `useNavigate()` + auto-detected routes. Extra props: `match?: RouteMatcher`, `staticRoutes?: boolean`, `loadHandles?: boolean`.
+- `useDetectedRoutes(options?): DevRoute[]` — the detected routes (build your own UI). Takes `{ match?, staticRoutes?, loadHandles? }`, or a bare matcher. Re-reads the tree as the router grows it.
+- `loadHandles` — import lazy route modules to read their `handle`; needed for `handle` in [framework mode](#react-router-framework-mode-approutests).
 - `flattenRoutes(routes, parent?, options?): DevRoute[]` — pure helper that flattens a route tree.
 - `RouteMatcher` — `string | RegExp | ((route: DevRoute) => boolean)`.
 
