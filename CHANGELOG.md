@@ -1,5 +1,11 @@
 # @chuvenger/devdock
 
+## 0.9.0
+
+### Minor Changes
+
+- 467b7da: Add `top`, `bottom`, `left` and `right` positions, which center the dock on that edge of the viewport. The popup opens inward, centered on the button.
+
 ## 0.8.0
 
 ### Minor Changes
