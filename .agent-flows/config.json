@@ -1,0 +1,18 @@
+{
+  "version": 3,
+  "repo": {
+    "baseBranch": "main"
+  },
+  "integrations": {
+    "github": {
+      "owner": "Chubacca",
+      "repo": "devdock",
+      "use": {
+        "sourceControl": "write"
+      }
+    }
+  },
+  "skipped": [
+    "integrations.worktree"
+  ]
+}

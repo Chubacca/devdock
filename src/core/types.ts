@@ -2,11 +2,19 @@ import type { ClassValue } from "cn";
 
 export type { ClassValue };
 
+/**
+ * A corner, or a bare edge name to center the dock on that edge
+ * (`"top"` is top-center, `"left"` is vertically centered on the left).
+ */
 export type DockPosition =
   | "bottom-left"
   | "bottom-right"
   | "top-left"
-  | "top-right";
+  | "top-right"
+  | "top"
+  | "bottom"
+  | "left"
+  | "right";
 
 /** A navigable destination shown in the dock's "Routes" section. */
 export interface DevRoute {
@@ -204,7 +212,7 @@ export interface DevDockOptions {
    * Defaults to `window.location.assign(path)`.
    */
   onNavigate?: (path: string) => void;
-  /** Corner to anchor the button. Default: "bottom-right". */
+  /** Where to anchor the button: a corner, or an edge to center on. Default: "bottom-right". */
   position?: DockPosition;
   /** Text on the floating button. Default: "DEV". */
   label?: string;
