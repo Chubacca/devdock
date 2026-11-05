@@ -73,6 +73,46 @@ describe("createDevDock (framework-agnostic core)", () => {
     inst.destroy();
   });
 
+  it("centers on a bare edge, clearing the previous placement", () => {
+    const inst = createDevDock({ enabled: true, position: "top" });
+    expect(shell()!.style.top).toBe("16px");
+    expect(shell()!.style.left).toBe("50%");
+    expect(shell()!.style.transform).toBe("translateX(-50%)");
+    expect(shell()!.style.right).toBe("");
+    expect(shell()!.style.bottom).toBe("");
+
+    inst.update({ position: "left" });
+    expect(shell()!.style.left).toBe("16px");
+    expect(shell()!.style.top).toBe("50%");
+    expect(shell()!.style.transform).toBe("translateY(-50%)");
+    expect(shell()!.style.bottom).toBe("");
+
+    inst.update({ position: "bottom-right" });
+    expect(shell()!.style.bottom).toBe("16px");
+    expect(shell()!.style.right).toBe("16px");
+    expect(shell()!.style.top).toBe("");
+    expect(shell()!.style.left).toBe("");
+    expect(shell()!.style.transform).toBe("");
+    inst.destroy();
+  });
+
+  it("opens an edge-centered panel inward, centered on the button", async () => {
+    const user = userEvent.setup();
+    const inst = createDevDock({ enabled: true, position: "top" });
+    await user.click(toggle());
+    expect(dialog()!.style.top).toBe("calc(100% + 8px)");
+    expect(dialog()!.style.bottom).toBe("");
+    expect(dialog()!.style.left).toBe("50%");
+    expect(dialog()!.style.transform).toBe("translateX(-50%)");
+
+    inst.update({ position: "right" });
+    expect(dialog()!.style.right).toBe("calc(100% + 8px)");
+    expect(dialog()!.style.top).toBe("50%");
+    expect(dialog()!.style.left).toBe("");
+    expect(dialog()!.style.transform).toBe("translateY(-50%)");
+    inst.destroy();
+  });
+
   it("opens the panel from the same corner as the button", async () => {
     const user = userEvent.setup();
     const inst = createDevDock({ enabled: true });

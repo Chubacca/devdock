@@ -118,28 +118,50 @@ function el<K extends keyof HTMLElementTagNameMap>(
 /** Every part `classNames` can address, in a fixed order. */
 const PARTS = Object.keys(partClass) as DockPart[];
 
+type Edge = "top" | "bottom" | "left" | "right";
+
+/**
+ * Split a position into the edges it hugs. A corner hugs two; a bare edge hugs
+ * one and is centered along it.
+ */
+function edgesOf(position: DockPosition): Edge[] {
+  return position.split("-") as Edge[];
+}
+
+const CENTER_ALONG: Record<Edge, Styles> = {
+  top: { left: "50%", transform: "translateX(-50%)" },
+  bottom: { left: "50%", transform: "translateX(-50%)" },
+  left: { top: "50%", transform: "translateY(-50%)" },
+  right: { top: "50%", transform: "translateY(-50%)" },
+};
+
+const CLEAR: Styles = { top: "", bottom: "", left: "", right: "", transform: "" };
+
 function cornerStyle(position: DockPosition): Styles {
   const gap = "16px";
-  switch (position) {
-    case "bottom-left":
-      return { bottom: gap, left: gap };
-    case "top-left":
-      return { top: gap, left: gap };
-    case "top-right":
-      return { top: gap, right: gap };
-    default:
-      return { bottom: gap, right: gap };
-  }
+  const edges = edgesOf(position);
+  const styles: Styles = { ...CLEAR };
+  for (const edge of edges) styles[edge] = gap;
+  if (edges.length === 1) Object.assign(styles, CENTER_ALONG[edges[0]!]);
+  return styles;
 }
 
 function panelAnchor(position: DockPosition): Styles {
-  const isTop = position.startsWith("top");
-  const isRight = position.endsWith("right");
-  return {
-    position: "absolute",
-    [isTop ? "top" : "bottom"]: "calc(100% + 8px)",
-    [isRight ? "right" : "left"]: "0",
-  } as Styles;
+  const edges = edgesOf(position);
+  // Start from a clean slate so moving between positions leaves nothing stale.
+  const styles: Styles = { ...CLEAR, position: "absolute" };
+  if (edges.length === 2) {
+    // Corner: open away from the vertical edge, aligned to the horizontal one.
+    const [vertical, horizontal] = edges as ["top" | "bottom", "left" | "right"];
+    styles[vertical] = "calc(100% + 8px)";
+    styles[horizontal] = "0";
+    return styles;
+  }
+  // Edge: open inward, centered on the button.
+  const edge = edges[0]!;
+  styles[edge] = "calc(100% + 8px)";
+  Object.assign(styles, CENTER_ALONG[edge]);
+  return styles;
 }
 
 /**
@@ -720,8 +742,6 @@ export function createDevDock(initial: DevDockOptions = {}): DevDockInstance {
       zIndex: String(zIndex),
       top: "",
       bottom: "",
-      left: "",
-      right: "",
     });
     Object.assign(root.style, cornerStyle(position));
 

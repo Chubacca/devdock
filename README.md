@@ -610,7 +610,7 @@ write CSS against them and skip `classNames` entirely.
 | `enabled`    | `boolean \| (() => boolean)`  | dev build **and** dev host           | Whether to render at all. Overrides both default checks. A predicate is re-checked on every update. |
 | `devHostOnly`| `boolean`                     | `true`                               | Also require a localhost/LAN hostname, so dev builds on real URLs stay hidden. Ignored when `enabled` is set. |
 | `onNavigate` | `(path: string) => void`      | `window.location.assign`             | How to navigate on route select. |
-| `position`   | `"bottom-left" \| "bottom-right" \| "top-left" \| "top-right"` | `"bottom-right"` | Corner. |
+| `position`   | `"bottom-left" \| "bottom-right" \| "top-left" \| "top-right" \| "top" \| "bottom" \| "left" \| "right"` | `"bottom-right"` | A corner, or a bare edge to center the button on that edge. |
 | `label`      | `string`                      | `"DEV"`                              | Button text. |
 | `title`      | `string`                      | `"Dev Menu"`                         | Popup heading. |
 | `hotkey`     | `string \| null`              | `"alt+shift+d"`                      | Toggle shortcut (⌥⇧D / Alt+Shift+D). `"mod"` in a spec is ⌘ on Mac, Ctrl elsewhere. `null` claims no key. |
